@@ -1,7 +1,7 @@
 CC = gcc
 
-TARGET = 400GbE_IB_TDemo
-SRC = 400GbE_IB_Transmit_Demo.c
+TARGET = 400GbE_TDemo
+SRC = 400GbE_Transmit_Demo.c
 INC = packet.h
 LIB = -libverbs
 
