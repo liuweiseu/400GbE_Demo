@@ -42,6 +42,10 @@ int main(int argc, char *argv[])
     struct ibv_device *ib_dev;
     ib_dev = dev_list[dev_num];
 
+    const char *dev_name;
+    dev_name = ibv_get_device_name(ib_dev);
+    printf("dev_name: %s\n",dev_name);
+    
     //open device
     struct ibv_context *context;
     context = ibv_open_device(ib_dev);
@@ -66,6 +70,10 @@ int main(int argc, char *argv[])
     struct ibv_comp_channel *recv_cc=NULL;
     recv_cc = ibv_create_comp_channel(context);
 
+    if(ibv_req_notify_cq(cq, 0)) {
+        perror("ibv_req_notify_cq");
+        exit(1);
+    } 
     // create qp
     struct ibv_qp *qp;
     struct ibv_qp_init_attr qp_init_attr = {
@@ -98,6 +106,8 @@ int main(int argc, char *argv[])
     else
         printf("QP init successfully!\n");
     
+    memset(&qp_attr, 0, sizeof(qp_attr));
+
     // move the ring to receiver
     qp_flags = IBV_QP_STATE;
     qp_attr.qp_state = IBV_QPS_RTR;
@@ -144,8 +154,6 @@ int main(int argc, char *argv[])
         wr.sg_list= &sg_entry[i];
         wr.next = NULL;
         wr.wr_id = i;
-        /* index of descriptor returned when packet arrives */
-        wr.wr_id = i;
         /* post receive buffer to ring */
         ibv_post_recv(qp, &wr, &bad_wr);
     }
@@ -155,31 +163,31 @@ int main(int argc, char *argv[])
     struct ibv_flow_attr attr;
     struct ibv_flow_spec_eth spec_eth;
     } __attribute__((packed)) flow_attr = {
-    .attr = {
-    .comp_mask = 0,
-    .type = IBV_FLOW_ATTR_NORMAL,
-    .size = sizeof(flow_attr),
-    .priority = 0,
-    .num_of_specs = 1,
-    .port = 1,
-    .flags = 0,
-    },
-    .spec_eth = {
-    .type = IBV_FLOW_SPEC_ETH,
-    .size = sizeof(struct ibv_flow_spec_eth),
-    .val = {
-        .dst_mac = DST_MAC,
-        .src_mac = SRC_MAC,
-        .ether_type = 0,
-        .vlan_tag = 0,
-    },
-    .mask = {
-        .dst_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-    .src_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-    .ether_type = 0,
-    .vlan_tag = 0,
-    }
-    }
+        .attr = {
+        .comp_mask = 0,
+        .type = IBV_FLOW_ATTR_NORMAL,
+        .size = sizeof(flow_attr),
+        .priority = 0,
+        .num_of_specs = 1,
+        .port = 1,
+        .flags = 0,
+        },
+        .spec_eth = {
+        .type = IBV_FLOW_SPEC_ETH,
+        .size = sizeof(struct ibv_flow_spec_eth),
+        .val = {
+            .dst_mac = DST_MAC,
+            .src_mac = SRC_MAC,
+            .ether_type = 0,
+            .vlan_tag = 0,
+        },
+        .mask = {
+            .dst_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+            .src_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+            .ether_type = 0,
+            .vlan_tag = 0,
+        }
+        }
     };
 
     //create steering rule
