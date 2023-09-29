@@ -1,4 +1,5 @@
 #include <infiniband/verbs.h>
+#include <poll.h> 
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -7,7 +8,7 @@
 #include "packet.h"
 
 #define CQE 512
-#define WR_N 16
+#define WR_N 512
 
 #define DEST_MAC {0xb8, 0xce, 0xf6, 0xe5, 0x6b, 0x5a}
 #define SRC_MAC {0x0c, 0x42, 0xa1, 0xbe, 0x34, 0xf8}
@@ -62,6 +63,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Couldn't create CQ.\n");
         exit(1);
     }
+    struct ibv_comp_channel *recv_cc=NULL;
+    recv_cc = ibv_create_comp_channel(context);
 
     // create qp
     struct ibv_qp *qp;
@@ -131,16 +134,22 @@ int main(int argc, char *argv[])
     }
 
     // create wr
-    struct ibv_send_wr wr[WR_N], *bad_wr;
+    struct ibv_send_wr wr, *bad_wr;
     for(int i=0; i< WR_N; i++)
     {
-        memset(&wr[i], 0, sizeof(wr[i]));
-        wr[i].num_sge = 1;
-        wr[i].sg_list= sg_entry;
-        wr[i].next = NULL;
-        wr[i].opcode = IBV_WR_SEND;
-        wr[i].wr_id = i;
-        wr[i].send_flags |= IBV_SEND_SIGNALED;
+        memset(&wr, 0, sizeof(wr));
+        wr.num_sge = 1;
+        /* each descriptor points to max MTU size buffer */
+        sg_entry[i].addr = (uint64_t)buf + PACKET_SIZE*i;
+        wr.sg_list= &sg_entry[i];
+        wr.next = NULL;
+        wr.opcode = IBV_WR_SEND;
+        wr.wr_id = i;
+        wr.send_flags |= IBV_SEND_SIGNALED;
+        /* index of descriptor returned when packet arrives */
+        wr.wr_id = i;
+        /* post receive buffer to ring */
+        ibv_post_recv(qp, &wr, &bad_wr);
     }
 
     // Register steering rule to intercept packet to DEST_MAC and place packet in ring pointed by ->qp
@@ -163,7 +172,7 @@ int main(int argc, char *argv[])
     .val = {
         .dst_mac = DEST_MAC,
         .src_mac = SRC_MAC,
-        .ether_type = ETH_TYPE,
+        .ether_type = 0,
         .vlan_tag = 0,
     },
     .mask = {
@@ -183,5 +192,57 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    //
+    int msgs_completed;
+    struct ibv_wc wc;
+
+    struct ibv_cq *ev_cq;
+    int ev_cq_ctx;
+
+    printf("ready to go!\n");
+
+    struct pollfd pfd;
+    int poll_rc = 0;
+
+    while(1)
+    {
+        pfd.fd = recv_cc->fd;
+        pfd.events = POLLIN;
+        pfd.revents = 0;
+
+        poll_rc = poll(&pfd, 1, 50);
+        if(poll_rc <= 0)
+            continue;
+
+        state = ibv_get_cq_event(recv_cc, &ev_cq, (void **)&ev_cq_ctx);
+        if(state)
+        {
+            perror("ibv_get_cq_event");
+            return NULL;
+        }
+
+        ibv_ack_cq_events(ev_cq, 1);
+
+        if(ibv_req_notify_cq(cq, 0))
+        {
+            perror("ibv_req_notify_cq");
+            return NULL;
+        }
+
+        msgs_completed = ibv_poll_cq(cq, 1, &wc);
+        if(msgs_completed > 0)
+        {
+            printf("message %ld received size %d\n", wc.wr_id, wc.byte_len);
+            wr.wr_id = wc.wr_id;
+            wr.sg_list = &sg_entry[wc.wr_id];
+            ibv_post_recv(qp, &wr, &bad_wr);
+        }else if(msgs_completed < 0)
+        {
+            printf("Polling error\n");
+            exit(1);
+        }
+    }
+    printf("We are done\n");
+    return 0;
     
 }
