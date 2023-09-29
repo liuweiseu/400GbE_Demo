@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
     }
 
     // create wr
-    struct ibv_send_wr wr, *bad_wr;
+    struct ibv_recv_wr wr, *bad_wr;
     for(int i=0; i< WR_N; i++)
     {
         memset(&wr, 0, sizeof(wr));
@@ -143,9 +143,7 @@ int main(int argc, char *argv[])
         sg_entry[i].addr = (uint64_t)buf + PACKET_SIZE*i;
         wr.sg_list= &sg_entry[i];
         wr.next = NULL;
-        wr.opcode = IBV_WR_SEND;
         wr.wr_id = i;
-        wr.send_flags |= IBV_SEND_SIGNALED;
         /* index of descriptor returned when packet arrives */
         wr.wr_id = i;
         /* post receive buffer to ring */
@@ -218,7 +216,7 @@ int main(int argc, char *argv[])
         if(state)
         {
             perror("ibv_get_cq_event");
-            return NULL;
+            exit(1);
         }
 
         ibv_ack_cq_events(ev_cq, 1);
@@ -226,7 +224,7 @@ int main(int argc, char *argv[])
         if(ibv_req_notify_cq(cq, 0))
         {
             perror("ibv_req_notify_cq");
-            return NULL;
+            exit(1);
         }
 
         msgs_completed = ibv_poll_cq(cq, 1, &wc);
