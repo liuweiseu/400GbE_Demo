@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
     .type = IBV_FLOW_SPEC_ETH,
     .size = sizeof(struct ibv_flow_spec_eth),
     .val = {
-        .dst_mac = DEST_MAC,
+        .dst_mac = DST_MAC,
         .src_mac = SRC_MAC,
         .ether_type = 0,
         .vlan_tag = 0,
