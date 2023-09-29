@@ -16,7 +16,7 @@
 
 int main(int argc, char *argv[])
 {
-    int dev_num = 2;
+    int dev_num = 3;
     int verbose = 0;
     for(int i=1; i < argc;)
     {
@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     const char *dev_name;
     dev_name = ibv_get_device_name(ib_dev);
     printf("dev_name: %s\n",dev_name);
-    
+
     //open device
     struct ibv_context *context;
     context = ibv_open_device(ib_dev);
@@ -62,14 +62,14 @@ int main(int argc, char *argv[])
 
     // create completion queue
     struct ibv_cq *cq;
-    cq = ibv_create_cq(context, CQE, NULL, NULL, 0);
+    struct ibv_comp_channel *recv_cc=NULL;
+    recv_cc = ibv_create_comp_channel(context);
+    cq = ibv_create_cq(context, CQE, NULL, recv_cc, 0);
     if(!cq){
         fprintf(stderr, "Couldn't create CQ.\n");
         exit(1);
     }
-    struct ibv_comp_channel *recv_cc=NULL;
-    recv_cc = ibv_create_comp_channel(context);
-
+    
     if(ibv_req_notify_cq(cq, 0)) {
         perror("ibv_req_notify_cq");
         exit(1);
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
         .recv_cq = cq,
         .cap = {
             .max_send_wr = 0,
-            .max_send_sge = 1,
+            .max_recv_sge = 1,
             .max_recv_wr = CQE
         },
         .qp_type = IBV_QPT_RAW_PACKET,
