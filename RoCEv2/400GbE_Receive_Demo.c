@@ -229,7 +229,6 @@ int main(int argc, char *argv[])
     qp = ibv_create_qp(pd, &qp_init_attr);
 
     // Initialize the QP
-    int state;
     struct ibv_qp_attr qp_attr;
     int qp_flags;
     memset(&qp_attr, 0, sizeof(qp_attr));
