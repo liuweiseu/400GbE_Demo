@@ -260,9 +260,9 @@ int main(int argc, char *argv[])
 
     // Allocate Memory
     void *buf;
-    uint8_t *buf_char = (uint8_t*)buf;
     int buf_size = PACKET_SIZE * CQE;
     buf = malloc(PACKET_SIZE*CQE);
+    uint8_t *buf_char = (uint8_t*)buf;
     // register memory
     struct ibv_mr *mr;
     mr = ibv_reg_mr(pd, buf, buf_size, IBV_ACCESS_LOCAL_WRITE);
@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
     struct ibv_sge sg_entry[WR_N];
     for(int i=0; i< WR_N; i++)
     {
-        sg_entry[i].addr = (uint64_t)(buf+i*PACKET_SIZE);
+        sg_entry[i].addr = (uint64_t)(buf)+i*PACKET_SIZE;
         sg_entry[i].length = PACKET_SIZE;
         sg_entry[i].lkey = mr->lkey;
     }
@@ -378,7 +378,7 @@ int main(int argc, char *argv[])
         if(msgs_completed > 0)
         {
             printf("message %ld received size %d\n", wc.wr_id, wc.byte_len);
-            printf("data[0-1]: 0x%x, 0x%x\n", buf_char[wc.wr_id*PACKET_SIZE],buf_char[wc.wr_id*PACKET_SIZE+1]);
+            printf("data[0-1]: 0x%x, 0x%x\n", buf_char[wc.wr_id*PACKET_SIZE+42],buf_char[wc.wr_id*PACKET_SIZE+43]);
             wr.wr_id = wc.wr_id;
             wr.sg_list = &sg_entry[wc.wr_id];
             ibv_post_recv(qp, &wr, &bad_wr);
