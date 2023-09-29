@@ -378,7 +378,7 @@ int main(int argc, char *argv[])
         if(msgs_completed > 0)
         {
             printf("message %ld received size %d\n", wc.wr_id, wc.byte_len);
-            printf("data[0-1]: 0x%x, 0x%x\n", buf_char[wc.wr_id*PACKET_SIZE+42],buf_char[wc.wr_id*PACKET_SIZE+43]);
+            printf("data[0-1]: 0x%x, %d\n", buf_char[wc.wr_id*PACKET_SIZE+42],buf_char[wc.wr_id*PACKET_SIZE+43]);
             wr.wr_id = wc.wr_id;
             wr.sg_list = &sg_entry[wc.wr_id];
             ibv_post_recv(qp, &wr, &bad_wr);

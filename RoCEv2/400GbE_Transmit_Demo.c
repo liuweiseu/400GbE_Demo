@@ -8,7 +8,7 @@
 
 #define DEV_NUM 2
 #define CQE 512
-#define WR_N 16
+#define WR_N 512
 
 unsigned char dst_mac[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38};
 unsigned char src_mac[6] = {0xa0, 0x88, 0xc2, 0x0d, 0x5e, 0x28};
@@ -313,7 +313,7 @@ int main(int argc, char *argv[])
     {
         memset(&wr[i], 0, sizeof(wr[i]));
         wr[i].num_sge = 1;
-        wr[i].sg_list= sg_entry;
+        wr[i].sg_list= &sg_entry[i];
         wr[i].next = NULL;
         wr[i].opcode = IBV_WR_SEND;
         wr[i].wr_id = i;
