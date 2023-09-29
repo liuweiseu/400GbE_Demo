@@ -124,6 +124,7 @@ int main(int argc, char *argv[])
 {
     int dev_num = 2;
     int verbose = 0;
+    int inf = 0;
     for(int i=1; i < argc;)
     {
         if(!strcmp(argv[i],"-d"))
@@ -133,6 +134,8 @@ int main(int argc, char *argv[])
         }
         if(!strcmp(argv[i], "-v"))
             verbose = 1;
+        if(!strcmp(argv[i], "-inf"))
+            inf = 1;
         i++;
     }
     struct ibv_device **dev_list;
@@ -284,9 +287,7 @@ int main(int argc, char *argv[])
         pkt->payload[0] = 0x55;
         pkt->payload[1] = i;
     }
-    unsigned char *buf_char = (unsigned char*)buf;
-    printf("dst_mac: %x %x %x\n", buf_char[0],buf_char[1],buf_char[2]);
-    printf("src_mac: %x %x %x\n", buf_char[6],buf_char[7],buf_char[8]);
+
     // register memory
     struct ibv_mr *mr;
     mr = ibv_reg_mr(pd, buf, buf_size, IBV_ACCESS_LOCAL_WRITE);
@@ -324,23 +325,34 @@ int main(int argc, char *argv[])
     struct ibv_wc wc;
     // ready to send
     int i;
-    while(1)
-    {
-        for(i = 0; i < WR_N; i++)
+    if(inf){
+        while(1)
         {
-            state = ibv_post_send(qp, &wr[i], &bad_wr);
-            /*
-            if (state < 0) {
-                fprintf(stderr, "failed in post send\n");
-                exit(1);
-            }
-            */
-            msc = ibv_poll_cq(cq, 1, &wc);
-        } 
-        msc = ibv_poll_cq(cq, 8, &wc);
+            for(i = 0; i < WR_N; i++)
+            {
+                state = ibv_post_send(qp, &wr[i], &bad_wr);
+                if (state < 0) {
+                    fprintf(stderr, "failed in post send\n");
+                    exit(1);
+                }
+                msc = ibv_poll_cq(cq, 1, &wc);
+            } 
+        }
+    }else
+    {
+        for(i = 0; i < 32; i++)
+            {
+                state = ibv_post_send(qp, &wr[i], &bad_wr);
+                if (state < 0) {
+                    fprintf(stderr, "failed in post send\n");
+                    exit(1);
+                }
+                msc = ibv_poll_cq(cq, 1, &wc);
+            } 
     }
+
     // close the device
     state = ibv_close_device(context);
-    printf("close_state: %d\n", state);
+    printf("Dev close.\n");
     return 0;
 }
