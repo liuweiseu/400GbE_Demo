@@ -153,11 +153,13 @@ int main(int argc, char *argv[])
 
     uint64_t dev_guid;
     dev_guid = ibv_get_device_guid(ib_dev);
-    printf("dev_guid: %lx\n", dev_guid);
+    if(verbose)
+        printf("dev_guid: %lx\n", dev_guid);
 
     const char *ib_node_type;
     ib_node_type = ibv_node_type_str(dev_list[2]->node_type);
-    printf("node_type: %s\n", ib_node_type);
+    if(verbose)
+        printf("node_type: %s\n", ib_node_type);
 
     // open the device
     struct ibv_context *context;
@@ -170,7 +172,6 @@ int main(int argc, char *argv[])
     state = ibv_query_device(context, &device_attr);
     if(verbose)
         print_dev_attr(&device_attr);
-    printf("query_dev_state: %d\n", state);
     
     // query the port
     struct ibv_port_attr port_attr;
@@ -178,7 +179,6 @@ int main(int argc, char *argv[])
     state = ibv_query_port(context, port_num, &port_attr);   
     if(verbose)
         print_port_attr(&port_attr);
-    printf("query_port_state: %d\n", state);
 
     // query gid
     union ibv_gid gid;
@@ -186,16 +186,12 @@ int main(int argc, char *argv[])
     state = ibv_query_gid(context, port_num, index, &gid);
     if(verbose)
         print_gid(&gid);
-    printf("query_gid_state: %d\n", state);
 
     // query pkey
     uint16_t pkey;
     state = ibv_query_pkey(context, port_num, index, &pkey);
     if(verbose)
         print_pkey(pkey);
-    printf("query_pkey_state: %d\n", state);
-
-
 
     // create protection domain
     struct ibv_pd *pd;
@@ -285,6 +281,8 @@ int main(int argc, char *argv[])
         memcpy(pkt->src_ip, src_ip, 4);
         memcpy(pkt->dst_ip, dst_ip, 4);
         memcpy(pkt->udp_hdr, udp_hdr, 8);
+        pkt->payload[0] = 0x55;
+        pkt->payload[1] = i;
     }
     unsigned char *buf_char = (unsigned char*)buf;
     printf("dst_mac: %x %x %x\n", buf_char[0],buf_char[1],buf_char[2]);

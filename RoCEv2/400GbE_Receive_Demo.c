@@ -14,6 +14,108 @@
 #define DST_MAC {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38}
 #define ETH_TYPE {0x08, 0x00}
 
+void print_dev_attr(struct ibv_device_attr *device_attr)
+{
+    printf("****************************Device attr*****************************\n");
+    printf("fw_ver: %s\n", device_attr->fw_ver);
+    printf("node_guid: 0x%llx\n", device_attr->node_guid);
+    printf("sys_image_guid: 0x%llx\n", device_attr->sys_image_guid);
+    printf("max_mr_size: %" PRIu64 "\n", device_attr->max_mr_size);
+    printf("page_size_cap: %" PRIu64 "\n", device_attr->page_size_cap);
+    printf("vendor_id: %d\n", device_attr->vendor_id);
+    printf("vendor_part_id: %d\n", device_attr->vendor_part_id);
+    printf("hw_ver: %d\n", device_attr->hw_ver);
+    printf("max_qp: %d\n", device_attr->max_qp);
+    printf("max_qp_wr: %d\n", device_attr->max_qp_wr);
+    printf("device_cap_flags: %d\n", device_attr->device_cap_flags);
+    printf("max_sge: %d\n", device_attr->max_sge);
+    printf("max_sge_rd: %d\n", device_attr->max_sge_rd);
+    printf("max_cq: %d\n", device_attr->max_cq);
+    printf("max_cqe: %d\n", device_attr->max_cqe);
+    printf("max_mr: %d\n", device_attr->max_mr);
+    printf("max_pd: %d\n", device_attr->max_pd);
+    printf("max_qp_rd_atom: %d\n", device_attr->max_qp_rd_atom);
+    printf("max_ee_rd_atom: %d\n", device_attr->max_ee_rd_atom);
+    printf("max_res_rd_atom: %d\n", device_attr->max_res_rd_atom);
+    printf("max_qp_init_rd_atom: %d\n", device_attr->max_qp_init_rd_atom);
+    printf("max_ee_init_rd_atom: %d\n", device_attr->max_ee_init_rd_atom);
+    printf("atomic_cap: %d\n", device_attr->atomic_cap);
+    printf("max_ee: %d\n", device_attr->max_ee);
+    printf("max_rdd: %d\n", device_attr->max_rdd);
+    printf("max_mw: %d\n", device_attr->max_mw);
+    printf("max_raw_ipv6_qp: %d\n", device_attr->max_raw_ipv6_qp);
+    printf("max_raw_ethy_qp: %d\n", device_attr->max_raw_ethy_qp);
+    printf("max_mcast_grp: %d\n", device_attr->max_mcast_grp);
+    printf("max_mcast_qp_attach: %d\n", device_attr->max_mcast_qp_attach);
+    printf("max_total_mcast_qp_attach: %d\n", device_attr->max_total_mcast_qp_attach);
+    printf("max_ah: %d\n", device_attr->max_ah);
+    printf("max_fmr: %d\n", device_attr->max_fmr);
+    printf("max_map_per_fmr: %d\n", device_attr->max_map_per_fmr);
+    printf("max_srq: %d\n", device_attr->max_srq);
+    printf("max_srq_wr: %d\n", device_attr->max_srq_wr);
+    printf("max_srq_sge: %d\n", device_attr->max_srq_sge);
+    printf("max_pkeys: %d\n", device_attr->max_pkeys);
+    printf("local_ca_ack_delay: %d\n", device_attr->local_ca_ack_delay);
+    printf("phys_port_cnt: %d\n", device_attr->phys_port_cnt);
+    printf("********************************************************************\n");
+}
+
+void print_port_attr(struct ibv_port_attr *port_attr)
+{
+    printf("****************************port attr*******************************\n");
+    printf("state: %d\n", port_attr->state);
+    printf("max_mtu: %d\n", port_attr->max_mtu);
+    printf("active_mtu: %d\n", port_attr->active_mtu);
+    printf("gid_tbl_len: %d\n", port_attr->gid_tbl_len);
+    printf("port_cap_flags: %d\n", port_attr->port_cap_flags);
+    printf("max_msg_sz: %d\n", port_attr->max_msg_sz);
+    printf("bad_pkey_cntr: %d\n", port_attr->bad_pkey_cntr);
+    printf("qkey_viol_cntr: %d\n", port_attr->qkey_viol_cntr);
+    printf("pkey_tbl_len: %d\n", port_attr->pkey_tbl_len);
+    printf("lid: %d\n", port_attr->lid);
+    printf("sm_lid: %d\n", port_attr->sm_lid);
+    printf("lmc: %d\n", port_attr->lmc);
+    printf("max_vl_num: %d\n", port_attr->max_vl_num);
+    printf("sm_sl: %d\n", port_attr->sm_sl);
+    printf("subnet_timeout: %d\n", port_attr->subnet_timeout);
+    printf("init_type_reply: %d\n", port_attr->init_type_reply);
+    printf("active_width: %d\n", port_attr->active_width);
+    printf("active_speed: %d\n", port_attr->active_speed);
+    printf("phys_state: %d\n", port_attr->phys_state);
+    printf("********************************************************************\n");
+}
+
+void print_gid(union ibv_gid *gid)
+{
+    printf("*******************************gid info*****************************\n");
+    printf("raw[0-7]: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",gid->raw[0],
+                                                            gid->raw[1],
+                                                            gid->raw[2],
+                                                            gid->raw[3],
+                                                            gid->raw[4],
+                                                            gid->raw[5],
+                                                            gid->raw[6],
+                                                            gid->raw[7]);
+    printf("raw[7:15]: 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",gid->raw[8],
+                                                            gid->raw[9],
+                                                            gid->raw[10],
+                                                            gid->raw[11],
+                                                            gid->raw[12],
+                                                            gid->raw[13],
+                                                            gid->raw[14],
+                                                            gid->raw[15]);
+    printf("global.subnet_prefix: 0x%llx\n", gid->global.subnet_prefix);
+    printf("global.interface_id: 0x%llx\n", gid->global.interface_id);
+    printf("********************************************************************\n");
+}
+
+void print_pkey(uint16_t pkey)
+{   
+    printf("******************************pkey info*****************************\n");
+    printf("pkey: 0x%x\n", pkey);
+    printf("********************************************************************\n");
+}
+
 int main(int argc, char *argv[])
 {
     int dev_num = 3;
@@ -46,12 +148,49 @@ int main(int argc, char *argv[])
     dev_name = ibv_get_device_name(ib_dev);
     printf("dev_name: %s\n",dev_name);
 
+    uint64_t dev_guid;
+    dev_guid = ibv_get_device_guid(ib_dev);
+    if(verbose)
+        printf("dev_guid: %lx\n", dev_guid);
+
+    const char *ib_node_type;
+    ib_node_type = ibv_node_type_str(dev_list[2]->node_type);
+    if(verbose)
+        printf("node_type: %s\n", ib_node_type);
+
     //open device
     struct ibv_context *context;
     context = ibv_open_device(ib_dev);
     printf("Dev opened.\n");
 
-        // create protection domain
+    int state;
+    // query the device and print the device attr
+    struct ibv_device_attr device_attr;
+    state = ibv_query_device(context, &device_attr);
+    if(verbose)
+        print_dev_attr(&device_attr);
+    
+    // query the port
+    struct ibv_port_attr port_attr;
+    uint8_t port_num = 1;
+    state = ibv_query_port(context, port_num, &port_attr);   
+    if(verbose)
+        print_port_attr(&port_attr);
+
+    // query gid
+    union ibv_gid gid;
+    int index = 0;
+    state = ibv_query_gid(context, port_num, index, &gid);
+    if(verbose)
+        print_gid(&gid);
+
+    // query pkey
+    uint16_t pkey;
+    state = ibv_query_pkey(context, port_num, index, &pkey);
+    if(verbose)
+        print_pkey(pkey);
+
+    // create protection domain
     struct ibv_pd *pd;
     pd = ibv_alloc_pd(context);
     if(!pd)
@@ -122,6 +261,7 @@ int main(int argc, char *argv[])
 
     // Allocate Memory
     void *buf;
+    uint8_t *buf_char = (uint8_t*)buf;
     int buf_size = PACKET_SIZE * CQE;
     buf = malloc(PACKET_SIZE*CQE);
     // register memory
@@ -239,6 +379,7 @@ int main(int argc, char *argv[])
         if(msgs_completed > 0)
         {
             printf("message %ld received size %d\n", wc.wr_id, wc.byte_len);
+            printf("data[0-1]: 0x%x, 0x%x\n", buf_char[wc.wr_id*PACKET_SIZE],buf_char[wc.wr_id*PACKET_SIZE+1]);
             wr.wr_id = wc.wr_id;
             wr.sg_list = &sg_entry[wc.wr_id];
             ibv_post_recv(qp, &wr, &bad_wr);
