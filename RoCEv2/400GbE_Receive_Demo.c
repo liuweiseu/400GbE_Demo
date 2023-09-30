@@ -339,7 +339,7 @@ int main(int argc, char *argv[])
 
     //
     int msgs_completed;
-    struct ibv_wc wc;
+    struct ibv_wc wc[WR_N];
 
     struct ibv_cq *ev_cq;
     int ev_cq_ctx;
@@ -374,14 +374,17 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        msgs_completed = ibv_poll_cq(cq, 1, &wc);
+        msgs_completed = ibv_poll_cq(cq, WR_N, wc);
         if(msgs_completed > 0)
         {
-            printf("message %ld received size %d\n", wc.wr_id, wc.byte_len);
-            printf("data[0-1]: 0x%x, %d\n", buf_char[wc.wr_id*PACKET_SIZE+42],buf_char[wc.wr_id*PACKET_SIZE+43]);
-            wr.wr_id = wc.wr_id;
-            wr.sg_list = &sg_entry[wc.wr_id];
-            ibv_post_recv(qp, &wr, &bad_wr);
+            for(int i = 0; i < msgs_completed; i++)
+            {
+                printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
+                printf("data[0-1]: 0x%x, %d\n", buf_char[wc[i].wr_id*PACKET_SIZE+42],buf_char[wc[i].wr_id*PACKET_SIZE+43]);
+                wr.wr_id = wc[i].wr_id;
+                wr.sg_list = &sg_entry[wc[i].wr_id];
+                ibv_post_recv(qp, &wr, &bad_wr);
+            }
         }else if(msgs_completed < 0)
         {
             printf("Polling error\n");

@@ -125,6 +125,7 @@ int main(int argc, char *argv[])
     int dev_num = 2;
     int verbose = 0;
     int inf = 0;
+    int n_wr = 1;
     for(int i=1; i < argc;)
     {
         if(!strcmp(argv[i],"-d"))
@@ -136,6 +137,11 @@ int main(int argc, char *argv[])
             verbose = 1;
         if(!strcmp(argv[i], "-inf"))
             inf = 1;
+        if(!strcmp(argv[i], "-n"))
+        {
+            i++;
+            n_wr = atoi(argv[i]); 
+        }
         i++;
     }
     struct ibv_device **dev_list;
@@ -340,7 +346,7 @@ int main(int argc, char *argv[])
         }
     }else
     {
-        for(i = 0; i < 32; i++)
+        for(i = 0; i < n_wr; i++)
             {
                 state = ibv_post_send(qp, &wr[i], &bad_wr);
                 if (state < 0) {
