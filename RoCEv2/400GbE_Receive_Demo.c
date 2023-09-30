@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
     // Allocate Memory
     void *buf;
     uint8_t *hostbuf=NULL;
-    hostbuf = (uint8_t*)malloc(PACKET_SIZE);
+    hostbuf = (uint8_t*)malloc(PACKET_SIZE*WR_N);
     int buf_size = PACKET_SIZE * WR_N;
     printf("gpudirect: %d\n", gpudirect);
     if(gpudirect)
@@ -369,7 +369,7 @@ int main(int argc, char *argv[])
 
     struct pollfd pfd;
     int poll_rc = 0;
-
+    int total_recv = 0;
     while(1)
     {
         pfd.fd = recv_cc->fd;
@@ -396,15 +396,16 @@ int main(int argc, char *argv[])
         }
 
         msgs_completed = ibv_poll_cq(cq, WR_N, wc);
+        total_recv += msgs_completed;
         if(msgs_completed > 0)
         {
             if(gpudirect)
             {
+                cudaMemcpy(hostbuf, buf_char+wc[0].wr_id*PACKET_SIZE, PACKET_SIZE*msgs_completed, cudaMemcpyDeviceToHost);
                 for(int i=0; i<msgs_completed; i++)
                 {
-                    cudaMemcpy(hostbuf, buf_char+wc[i].wr_id*PACKET_SIZE, PACKET_SIZE, cudaMemcpyDeviceToHost);
                     printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
-                    printf("data[0-1]: 0x%x, %d\n", hostbuf[42], hostbuf[43]+hostbuf[44]*256);
+                    printf("data[0-1]: 0x%x, %d\n", hostbuf[i*PACKET_SIZE+42], hostbuf[i*PACKET_SIZE+43]+hostbuf[i*PACKET_SIZE+44]*256);
                     wr.wr_id = wc[i].wr_id;
                     wr.sg_list = &sg_entry[wc[i].wr_id];
                     ibv_post_recv(qp, &wr, &bad_wr);
@@ -421,7 +422,7 @@ int main(int argc, char *argv[])
                     ibv_post_recv(qp, &wr, &bad_wr);
                 }
             }
-        printf("msgs_completed: %d\n",msgs_completed);   
+        printf("total_recv: %d\n",total_recv);   
         }else if(msgs_completed < 0)
         {
             printf("Polling error\n");
