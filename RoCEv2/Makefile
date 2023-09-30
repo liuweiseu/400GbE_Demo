@@ -1,4 +1,4 @@
-CC = gcc
+CC = nvcc
 
 TARGET_T = 400GbE_TDemo
 TARGET_R = 400GbE_RDemo
@@ -7,7 +7,7 @@ SRC_T = 400GbE_Transmit_Demo.c
 SRC_R = 400GbE_Receive_Demo.c
 
 INC = packet.h
-LIB = -libverbs
+LIB = -libverbs -lcuda
 
 all: ${TARGET_T} ${TARGET_R}
 

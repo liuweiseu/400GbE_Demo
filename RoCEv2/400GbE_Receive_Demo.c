@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#include "cuda.h"
+#include "cuda_runtime.h"
+
 #include "packet.h"
 
 #define CQE 512
@@ -118,8 +121,9 @@ void print_pkey(uint16_t pkey)
 
 int main(int argc, char *argv[])
 {
-    int dev_num = 3;
+    int dev_num = 1;
     int verbose = 0;
+    int gpudirect = 0;
     for(int i=1; i < argc;)
     {
         if(!strcmp(argv[i],"-d"))
@@ -129,6 +133,8 @@ int main(int argc, char *argv[])
         }
         if(!strcmp(argv[i], "-v"))
             verbose = 1;
+        if(!strcmp(argv[i], "--gpu"))
+            gpudirect = 1;
         i++;
     }
     struct ibv_device **dev_list;
@@ -260,8 +266,25 @@ int main(int argc, char *argv[])
 
     // Allocate Memory
     void *buf;
+    uint8_t *hostbuf=NULL;
+    hostbuf = (uint8_t*)malloc(PACKET_SIZE);
     int buf_size = PACKET_SIZE * CQE;
-    buf = malloc(PACKET_SIZE*CQE);
+    printf("gpudirect: %d\n", gpudirect);
+    if(gpudirect)
+    {
+        printf("Allocating mem on GPU...\n");
+        state = cudaMalloc((void **) &buf, buf_size);
+        //buf = malloc(PACKET_SIZE*CQE);
+        if(state == 0)
+            printf("Allocate GPU memory successfully!\n");
+        else
+        {
+            printf("Failed to allocate GPU memory.\n");
+            exit(1);
+        }
+    }
+    else
+        buf = malloc(buf_size);
     uint8_t *buf_char = (uint8_t*)buf;
     // register memory
     struct ibv_mr *mr;
@@ -377,14 +400,30 @@ int main(int argc, char *argv[])
         msgs_completed = ibv_poll_cq(cq, WR_N, wc);
         if(msgs_completed > 0)
         {
-            for(int i = 0; i < msgs_completed; i++)
+            if(gpudirect)
             {
-                printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
-                printf("data[0-1]: 0x%x, %d\n", buf_char[wc[i].wr_id*PACKET_SIZE+42],buf_char[wc[i].wr_id*PACKET_SIZE+43]);
-                wr.wr_id = wc[i].wr_id;
-                wr.sg_list = &sg_entry[wc[i].wr_id];
-                ibv_post_recv(qp, &wr, &bad_wr);
+                for(int i=0; i<msgs_completed; i++)
+                {
+                    cudaMemcpy(hostbuf, buf_char+wc[i].wr_id*PACKET_SIZE, PACKET_SIZE, cudaMemcpyDeviceToHost);
+                    printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
+                    printf("data[0-1]: 0x%x, %d\n", hostbuf[42], hostbuf[43]);
+                    wr.wr_id = wc[i].wr_id;
+                    wr.sg_list = &sg_entry[wc[i].wr_id];
+                    ibv_post_recv(qp, &wr, &bad_wr);
+                }
             }
+            else
+            {
+                for(int i = 0; i < msgs_completed; i++)
+                {
+                    printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
+                    printf("data[0-1]: 0x%x, %d\n", buf_char[wc[i].wr_id*PACKET_SIZE+42],buf_char[wc[i].wr_id*PACKET_SIZE+43]);
+                    wr.wr_id = wc[i].wr_id;
+                    wr.sg_list = &sg_entry[wc[i].wr_id];
+                    ibv_post_recv(qp, &wr, &bad_wr);
+                }
+            }
+            
         }else if(msgs_completed < 0)
         {
             printf("Polling error\n");
