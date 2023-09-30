@@ -248,6 +248,18 @@ int main(int argc, char *argv[])
     else
         printf("QP init successfully!\n");
     
+    // move the ring to receiver
+    qp_flags = IBV_QP_STATE;
+    qp_attr.qp_state = IBV_QPS_RTR;
+    state = ibv_modify_qp(qp, &qp_attr, qp_flags);
+    if(state < 0)
+    {
+        fprintf(stderr, "Failed to modify qp to RTR.\n");
+        exit(1);
+    }
+    else
+        printf("QP is ready to receiver data!\n");
+
     // move the ring to send
     memset(&qp_attr, 0, sizeof(qp_attr));
     qp_flags = IBV_QP_STATE;
