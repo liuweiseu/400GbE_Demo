@@ -415,7 +415,7 @@ int main(int argc, char *argv[])
                 for(int i = 0; i < msgs_completed; i++)
                 {
                     printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
-                    printf("data[0-1]: 0x%x, %d\n", buf_char[wc[i].wr_id*PACKET_SIZE+42],buf_char[wc[i].wr_id*PACKET_SIZE+43]);
+                    printf("data[0-1]: 0x%x, %d\n", buf_char[wc[i].wr_id*PACKET_SIZE+42],buf_char[wc[i].wr_id*PACKET_SIZE+43] +buf_char[wc[i].wr_id*PACKET_SIZE+44]*256 );
                     wr.wr_id = wc[i].wr_id;
                     wr.sg_list = &sg_entry[wc[i].wr_id];
                     ibv_post_recv(qp, &wr, &bad_wr);
