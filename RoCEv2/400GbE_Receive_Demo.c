@@ -404,7 +404,7 @@ int main(int argc, char *argv[])
                 {
                     cudaMemcpy(hostbuf, buf_char+wc[i].wr_id*PACKET_SIZE, PACKET_SIZE, cudaMemcpyDeviceToHost);
                     printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
-                    printf("data[0-1]: 0x%x, %d\n", hostbuf[42], hostbuf[43]);
+                    printf("data[0-1]: 0x%x, %d\n", hostbuf[42], hostbuf[43]+hostbuf[44]*256);
                     wr.wr_id = wc[i].wr_id;
                     wr.sg_list = &sg_entry[wc[i].wr_id];
                     ibv_post_recv(qp, &wr, &bad_wr);
@@ -421,7 +421,7 @@ int main(int argc, char *argv[])
                     ibv_post_recv(qp, &wr, &bad_wr);
                 }
             }
-            
+        printf("msgs_completed: %d\n",msgs_completed);   
         }else if(msgs_completed < 0)
         {
             printf("Polling error\n");
