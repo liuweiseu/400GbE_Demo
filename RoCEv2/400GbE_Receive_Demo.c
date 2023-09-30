@@ -10,8 +10,7 @@
 
 #include "packet.h"
 
-#define CQE 512
-#define WR_N 512
+#define WR_N 16384
 
 #define SRC_MAC {0xa0, 0x88, 0xc2, 0x0d, 0x5e, 0x28}
 #define DST_MAC {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38}
@@ -209,7 +208,7 @@ int main(int argc, char *argv[])
     struct ibv_cq *cq;
     struct ibv_comp_channel *recv_cc=NULL;
     recv_cc = ibv_create_comp_channel(context);
-    cq = ibv_create_cq(context, CQE, NULL, recv_cc, 0);
+    cq = ibv_create_cq(context, WR_N, NULL, recv_cc, 0);
     if(!cq){
         fprintf(stderr, "Couldn't create CQ.\n");
         exit(1);
@@ -228,7 +227,7 @@ int main(int argc, char *argv[])
         .cap = {
             .max_send_wr = 0,
             .max_recv_sge = 1,
-            .max_recv_wr = CQE
+            .max_recv_wr = WR_N
         },
         .qp_type = IBV_QPT_RAW_PACKET,
     };
@@ -268,13 +267,12 @@ int main(int argc, char *argv[])
     void *buf;
     uint8_t *hostbuf=NULL;
     hostbuf = (uint8_t*)malloc(PACKET_SIZE);
-    int buf_size = PACKET_SIZE * CQE;
+    int buf_size = PACKET_SIZE * WR_N;
     printf("gpudirect: %d\n", gpudirect);
     if(gpudirect)
     {
         printf("Allocating mem on GPU...\n");
         state = cudaMalloc((void **) &buf, buf_size);
-        //buf = malloc(PACKET_SIZE*CQE);
         if(state == 0)
             printf("Allocate GPU memory successfully!\n");
         else
