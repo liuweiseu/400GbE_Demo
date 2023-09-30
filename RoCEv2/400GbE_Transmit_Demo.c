@@ -6,8 +6,6 @@
 
 #include "packet.h"
 
-#define DEV_NUM 2
-#define CQE 512
 #define WR_N 512
 
 unsigned char dst_mac[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38};
@@ -213,7 +211,7 @@ int main(int argc, char *argv[])
 
     // create completion queue
     struct ibv_cq *cq;
-    cq = ibv_create_cq(context, CQE, NULL, NULL, 0);
+    cq = ibv_create_cq(context, WR_N, NULL, NULL, 0);
     if(!cq){
         fprintf(stderr, "Couldn't create CQ.\n");
         exit(1);
@@ -226,7 +224,7 @@ int main(int argc, char *argv[])
         .send_cq = cq,
         .recv_cq = cq,
         .cap = {
-            .max_send_wr = CQE,
+            .max_send_wr = WR_N,
             .max_send_sge = 1,
             .max_recv_wr = 0
         },
@@ -250,18 +248,6 @@ int main(int argc, char *argv[])
     else
         printf("QP init successfully!\n");
     
-    // move the ring to receiver
-    qp_flags = IBV_QP_STATE;
-    qp_attr.qp_state = IBV_QPS_RTR;
-    state = ibv_modify_qp(qp, &qp_attr, qp_flags);
-    if(state < 0)
-    {
-        fprintf(stderr, "Failed to modify qp to RTR.\n");
-        exit(1);
-    }
-    else
-        printf("QP is ready to receiver data!\n");
-
     // move the ring to send
     memset(&qp_attr, 0, sizeof(qp_attr));
     qp_flags = IBV_QP_STATE;
@@ -277,10 +263,10 @@ int main(int argc, char *argv[])
 
     // Allocate Memory
     void *buf;
-    int buf_size = PACKET_SIZE * CQE;
-    buf = malloc(PACKET_SIZE*CQE);
+    int buf_size = PACKET_SIZE * WR_N;
+    buf = malloc(PACKET_SIZE*WR_N);
     struct packet *pkt;
-    for(int i=0; i < CQE; i++)
+    for(int i=0; i < WR_N; i++)
     {
         pkt = (struct packet *)(buf+i*PACKET_SIZE);
         memcpy(pkt->dst_mac, dst_mac, 6);
@@ -291,7 +277,8 @@ int main(int argc, char *argv[])
         memcpy(pkt->dst_ip, dst_ip, 4);
         memcpy(pkt->udp_hdr, udp_hdr, 8);
         pkt->payload[0] = 0x55;
-        pkt->payload[1] = i;
+        pkt->payload[1] = i&0xff;
+        pkt->payload[2] = i >> 8;
     }
 
     // register memory
