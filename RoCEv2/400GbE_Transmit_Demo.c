@@ -6,7 +6,7 @@
 
 #include "packet.h"
 
-#define WR_N 512
+#define WR_N 16384
 
 unsigned char dst_mac[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38};
 unsigned char src_mac[6] = {0xa0, 0x88, 0xc2, 0x0d, 0x5e, 0x28};
@@ -355,7 +355,7 @@ int main(int argc, char *argv[])
                 msc = ibv_poll_cq(cq, 1, &wc);
             } 
     }
-
+    
     // close the device
     state = ibv_close_device(context);
     printf("Dev close.\n");
