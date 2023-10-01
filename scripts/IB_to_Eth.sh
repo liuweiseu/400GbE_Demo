@@ -1,6 +1,6 @@
 #! /bin/bash
 
-if [ ! $1] ;then
+if [ ! $1 ] ;then
 	echo "Please specify the PCIe address of the NIC!"
 	exit
 fi
