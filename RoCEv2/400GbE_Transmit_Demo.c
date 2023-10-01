@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
         }
         if(!strcmp(argv[i], "-v"))
             verbose = 1;
-        if(!strcmp(argv[i], "-inf"))
+        if(!strcmp(argv[i], "--inf"))
             inf = 1;
         if(!strcmp(argv[i], "-n"))
         {
