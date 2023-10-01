@@ -19,7 +19,7 @@ if [ $1 == 'performance' ] ;then
 fi
 
 if [ $1 == 'powersave' ] ;then
-	echo "setting cpu to powersave mode."
+	echo "Setting cpu to powersave mode."
 	cpufreq-set -c 0 -g powersave
 	cpufreq-set -c 1 -g powersave
 	cpufreq-set -c 2 -g powersave
@@ -28,4 +28,5 @@ if [ $1 == 'powersave' ] ;then
 	cpufreq-set -c 5 -g powersave
 	cpufreq-set -c 6 -g powersave
 	cpufreq-set -c 7 -g powersave
+	echo "Done."
 fi
