@@ -124,6 +124,7 @@ int main(int argc, char *argv[])
     int verbose = 0;
     int inf = 0;
     int n_wr = 1;
+    int woip = 0;
     for(int i=1; i < argc;)
     {
         if(!strcmp(argv[i],"-d"))
@@ -140,6 +141,8 @@ int main(int argc, char *argv[])
             i++;
             n_wr = atoi(argv[i]); 
         }
+        if(!strcmp(argv[i], "--woip"))
+            woip = 1;
         i++;
     }
     struct ibv_device **dev_list;
@@ -283,11 +286,14 @@ int main(int argc, char *argv[])
         pkt = (struct packet *)(buf+i*PACKET_SIZE);
         memcpy(pkt->dst_mac, dst_mac, 6);
         memcpy(pkt->src_mac, src_mac, 6);
-        memcpy(pkt->eth_type, eth_type, 2);
-        memcpy(pkt->ip_hdrs, ip_hdrs, 12);
-        memcpy(pkt->src_ip, src_ip, 4);
-        memcpy(pkt->dst_ip, dst_ip, 4);
-        memcpy(pkt->udp_hdr, udp_hdr, 8);
+        if(woip == 0)
+        {
+            memcpy(pkt->eth_type, eth_type, 2);
+            memcpy(pkt->ip_hdrs, ip_hdrs, 12);
+            memcpy(pkt->src_ip, src_ip, 4);
+            memcpy(pkt->dst_ip, dst_ip, 4);
+            memcpy(pkt->udp_hdr, udp_hdr, 8);
+        }
         pkt->payload[0] = 0x55;
         pkt->payload[1] = i&0xff;
         pkt->payload[2] = i >> 8;
