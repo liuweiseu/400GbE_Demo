@@ -327,23 +327,35 @@ int main(int argc, char *argv[])
     }
 
     int msc;
-    struct ibv_wc wc;
+    struct ibv_wc wc[WR_N];
     // ready to send
     int i;
-    if(inf){
+    int ns = 0;
+    if(inf)
+    {
+        for(i = 0; i < WR_N; i++)
+        {
+            state = ibv_post_send(qp, &wr[i], &bad_wr);
+            if (state < 0) {
+                fprintf(stderr, "failed in post send\n");
+                exit(1);
+            }
+        } 
         while(1)
         {
-            for(i = 0; i < WR_N; i++)
+            msc = ibv_poll_cq(cq, WR_N, wc);
+            ns += msc;
+            for(i = 0; i < msc; i++)
             {
-                state = ibv_post_send(qp, &wr[i], &bad_wr);
+                state = ibv_post_send(qp, &wr[wc[ns%WR_N].wr_id], &bad_wr);
                 if (state < 0) {
                     fprintf(stderr, "failed in post send\n");
                     exit(1);
                 }
-                msc = ibv_poll_cq(cq, 1, &wc);
             } 
-        }
-    }else
+        } 
+    }
+    else
     {
         for(i = 0; i < n_wr; i++)
             {
@@ -352,10 +364,23 @@ int main(int argc, char *argv[])
                     fprintf(stderr, "failed in post send\n");
                     exit(1);
                 }
-                msc = ibv_poll_cq(cq, 1, &wc);
             } 
+            // we need to wait until all the wr are completed.
+            while(ns < n_wr)
+            {
+                msc = ibv_poll_cq(cq, 1, wc);
+                ns += msc;
+            }
     }
     
+    // dealloc pd
+    ibv_dealloc_pd(pd);
+    // destory cq
+    ibv_destroy_cq(cq);
+    // dereg mr
+    ibv_dereg_mr(mr);
+    // destory qp
+    ibv_destroy_qp(qp);
     // close the device
     state = ibv_close_device(context);
     printf("Dev close.\n");
