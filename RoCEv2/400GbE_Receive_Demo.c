@@ -118,6 +118,17 @@ void print_pkey(uint16_t pkey)
     printf("********************************************************************\n");
 }
 
+void print_helper()
+{
+    printf("Usage:\n");
+    printf("    400GbE_RDemo     Receiver demo at 400Gbps\n\n");
+    printf("Options:\n");
+    printf("    -h, print out the helper information.\n");
+    printf("    -v, print out the query information.\n");
+    printf("    -d, device number. '0' means mlx5_0.\n");
+    printf("    --gpu, allocate memory on GPU. the memory is allocated on the host by default.\n");
+}
+
 int main(int argc, char *argv[])
 {
     int dev_num = 1;
@@ -134,6 +145,11 @@ int main(int argc, char *argv[])
             verbose = 1;
         if(!strcmp(argv[i], "--gpu"))
             gpudirect = 1;
+        if(!strcmp(argv[i], "-h"))
+        {
+            print_helper();
+            return 0;
+        }
         i++;
     }
     struct ibv_device **dev_list;

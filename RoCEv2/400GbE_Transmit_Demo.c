@@ -118,6 +118,19 @@ void print_pkey(uint16_t pkey)
     printf("********************************************************************\n");
 }
 
+void print_helper()
+{
+    printf("Usage:\n");
+    printf("    400GbE_TDemo     Transmit demo at 400Gbps\n\n");
+    printf("Options:\n");
+    printf("    -h, print out the helper information.\n");
+    printf("    -v, print out the query information.\n");
+    printf("    -d, device number. '0' means mlx5_0.\n");
+    printf("    -n, the number of work request. the default values 1; the max value is 16384.\n");
+    printf("    --inf, keeping sending out data.\n");
+    printf("    --woip, send raw ethernet packet without IP setting.\n");
+}
+
 int main(int argc, char *argv[])
 {
     int dev_num = 2;
@@ -143,6 +156,11 @@ int main(int argc, char *argv[])
         }
         if(!strcmp(argv[i], "--woip"))
             woip = 1;
+        if(!strcmp(argv[i], "-h"))
+        {
+            print_helper();
+            return 0;
+        }
         i++;
     }
     struct ibv_device **dev_list;
