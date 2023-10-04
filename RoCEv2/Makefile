@@ -7,6 +7,7 @@ SRC_T = 400GbE_Transmit_Demo.c
 SRC_R = 400GbE_Receive_Demo.c
 
 INC = packet.h
+
 LIB = -libverbs -lcuda
 
 all: ${TARGET_T} ${TARGET_R}

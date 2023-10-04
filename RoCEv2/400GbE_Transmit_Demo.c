@@ -8,8 +8,8 @@
 
 #define WR_N 16384
 
-unsigned char dst_mac[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38};
-unsigned char src_mac[6] = {0xa0, 0x88, 0xc2, 0x0d, 0x5e, 0x28};
+unsigned char src_mac[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38};
+unsigned char dst_mac[6] = {0xa0, 0x88, 0xc2, 0x0d, 0x5e, 0x28};
 unsigned char eth_type[2] = {0x08, 0x00};
 unsigned char ip_hdrs[12] = {0x45, 0x00, 0x1f, 0x54, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11, 0xaf, 0xb6};
 unsigned char src_ip[4] = {192,168,3,2};
@@ -133,7 +133,7 @@ void print_helper()
 
 int main(int argc, char *argv[])
 {
-    int dev_num = 2;
+    int dev_num = 0;
     int verbose = 0;
     int inf = 0;
     int n_wr = 1;
@@ -185,7 +185,7 @@ int main(int argc, char *argv[])
         printf("dev_guid: %lx\n", dev_guid);
 
     const char *ib_node_type;
-    ib_node_type = ibv_node_type_str(dev_list[2]->node_type);
+    ib_node_type = ibv_node_type_str(dev_list[dev_num]->node_type);
     if(verbose)
         printf("node_type: %s\n", ib_node_type);
 

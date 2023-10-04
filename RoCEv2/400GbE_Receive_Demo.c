@@ -12,8 +12,8 @@
 
 #define WR_N 16384
 
-#define SRC_MAC {0xa0, 0x88, 0xc2, 0x0d, 0x5e, 0x28}
-#define DST_MAC {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38}
+#define DST_MAC {0xa0, 0x88, 0xc2, 0x0d, 0x5e, 0x28}
+#define SRC_MAC {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38}
 #define ETH_TYPE {0x08, 0x00}
 
 void print_dev_attr(struct ibv_device_attr *device_attr)
@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
         printf("dev_guid: %lx\n", dev_guid);
 
     const char *ib_node_type;
-    ib_node_type = ibv_node_type_str(dev_list[2]->node_type);
+    ib_node_type = ibv_node_type_str(dev_list[dev_num]->node_type);
     if(verbose)
         printf("node_type: %s\n", ib_node_type);
 
