@@ -402,7 +402,7 @@ int main(int argc, char *argv[])
                 // we need to wait until all the wr are completed.
                 while(ns < WR_N)
                 {
-                    msc = ibv_poll_cq(cq, 1, wc);
+                    msc = ibv_poll_cq(cq, WR_N, wc);
                     ns += msc;
                 }
                 ns = 0;
@@ -421,7 +421,7 @@ int main(int argc, char *argv[])
                 // we need to wait until all the wr are completed.
                 while(ns < n_wr)
                 {
-                    msc = ibv_poll_cq(cq, 1, wc);
+                    msc = ibv_poll_cq(cq, n_wr, wc);
                     ns += msc;
                 }
         }

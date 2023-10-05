@@ -7,7 +7,7 @@ if [ ! $1 ] ;then
 	exit
 fi
 
-if [ $1 == 'performance' ] ;then
+if [ $1 == '--performance' ] ;then
 	echo "Setting cpu to performance mode."
 	for((i=0;i<${cpus};i++));
     	do
@@ -16,7 +16,7 @@ if [ $1 == 'performance' ] ;then
 	echo "Done."
 fi
 
-if [ $1 == 'powersave' ] ;then
+if [ $1 == '--powersave' ] ;then
 	echo "Setting cpu to powersave mode."
         for((i=0;i<${cpus};i++));
         do
@@ -25,7 +25,7 @@ if [ $1 == 'powersave' ] ;then
 	echo "Done."
 fi
 
-if [ $1 == 'check' ] ;then
+if [ $1 == '--check' ] ;then
         for((i=0;i<${cpus};i++));
         do
             freq=`cpufreq-info -c $i |grep "current CPU frequency"`
