@@ -1,7 +1,7 @@
 #ifndef _PACKET_H_
 #define _PACKET_H_
 
-#define PACKET_SIZE 9000
+#define PACKET_SIZE 8192
 struct packet{
     unsigned char dst_mac[6];
     unsigned char src_mac[6];
