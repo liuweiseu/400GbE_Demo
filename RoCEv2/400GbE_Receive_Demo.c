@@ -293,9 +293,11 @@ int main(int argc, char *argv[])
     // Allocate Memory
     void *buf;
     uint8_t *hostbuf=NULL;
+    unsigned int flag = 1;
     hostbuf = (uint8_t*)malloc(PACKET_SIZE*WR_N*N_wr);
     int buf_size = PACKET_SIZE * WR_N * N_wr;
     printf("gpudirect: %d\n", gpudirect);
+    
     if(gpudirect)
     {
         printf("Allocating mem on GPU...\n");
@@ -305,6 +307,14 @@ int main(int argc, char *argv[])
         else
         {
             printf("Failed to allocate GPU memory.\n");
+            exit(1);
+        }
+        state = cuPointerSetAttribute(&flag, CU_POINTER_ATTRIBUTE_SYNC_MEMOPS, (uintptr_t)buf);
+        if(state == 0)
+            printf("Pinned GPU memory successfully!\n");
+        else
+        {
+            printf("Failed to pin GPU memory.\n");
             exit(1);
         }
     }

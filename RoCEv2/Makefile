@@ -8,7 +8,7 @@ SRC_R = 400GbE_Receive_Demo.c
 
 INC = packet.h
 
-LIB = -libverbs -lcuda
+LIB = -libverbs -lcuda -arch=sm_86
 
 all: ${TARGET_T} ${TARGET_R}
 
