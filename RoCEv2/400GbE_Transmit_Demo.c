@@ -127,6 +127,7 @@ void print_helper()
     printf("    -v, print out the query information.\n");
     printf("    -d, device number. '0' means mlx5_0.\n");
     printf("    -n, the number of work request. the default values 1; the max value is 16384.\n");
+    printf("    -N, the number of groups of work request. the number in each wr group is 16384.\n");
     printf("    --inf, keeping sending out data.\n");
     printf("    --woip, send raw ethernet packet without IP setting.\n");
 }
@@ -137,6 +138,7 @@ int main(int argc, char *argv[])
     int verbose = 0;
     int inf = 0;
     int n_wr = 1;
+    int N_wr = 0;
     int woip = 0;
     for(int i=1; i < argc;)
     {
@@ -153,6 +155,11 @@ int main(int argc, char *argv[])
         {
             i++;
             n_wr = atoi(argv[i]); 
+        }
+        if(!strcmp(argv[i], "-N"))
+        {
+            i++;
+            N_wr = atoi(argv[i]); 
         }
         if(!strcmp(argv[i], "--woip"))
             woip = 1;
@@ -353,7 +360,7 @@ int main(int argc, char *argv[])
     int msc;
     struct ibv_wc wc[WR_N];
     // ready to send
-    int i;
+    int i, j;
     int ns = 0;
     if(inf)
     {
@@ -381,20 +388,43 @@ int main(int argc, char *argv[])
     }
     else
     {
-        for(i = 0; i < n_wr; i++)
+        if(N_wr != 0){
+            for(j = 0; j<N_wr; j++)
             {
-                state = ibv_post_send(qp, &wr[i], &bad_wr);
-                if (state < 0) {
-                    fprintf(stderr, "failed in post send\n");
-                    exit(1);
+                for(i = 0; i < WR_N; i++)
+                {
+                    state = ibv_post_send(qp, &wr[i], &bad_wr);
+                    if (state < 0) {
+                        fprintf(stderr, "failed in post send\n");
+                        exit(1);
+                    }
+                } 
+                // we need to wait until all the wr are completed.
+                while(ns < WR_N)
+                {
+                    msc = ibv_poll_cq(cq, 1, wc);
+                    ns += msc;
                 }
-            } 
-            // we need to wait until all the wr are completed.
-            while(ns < n_wr)
-            {
-                msc = ibv_poll_cq(cq, 1, wc);
-                ns += msc;
+                ns = 0;
             }
+        }
+        else
+        {
+            for(i = 0; i < n_wr; i++)
+                {
+                    state = ibv_post_send(qp, &wr[i], &bad_wr);
+                    if (state < 0) {
+                        fprintf(stderr, "failed in post send\n");
+                        exit(1);
+                    }
+                } 
+                // we need to wait until all the wr are completed.
+                while(ns < n_wr)
+                {
+                    msc = ibv_poll_cq(cq, 1, wc);
+                    ns += msc;
+                }
+        }
     }
     
     // dealloc pd

@@ -126,6 +126,8 @@ void print_helper()
     printf("    -h, print out the helper information.\n");
     printf("    -v, print out the query information.\n");
     printf("    -d, device number. '0' means mlx5_0.\n");
+    printf("    -N, the number of groups of wr. the number of wr in each group is 16384.\n");
+    printf("    -p, print out the data for verification.\n");
     printf("    --gpu, allocate memory on GPU. the memory is allocated on the host by default.\n");
 }
 
@@ -133,6 +135,8 @@ int main(int argc, char *argv[])
 {
     int dev_num = 1;
     int verbose = 0;
+    int N_wr = 1;
+    int print = 0;
     int gpudirect = 0;
     for(int i=1; i < argc;)
     {
@@ -141,6 +145,13 @@ int main(int argc, char *argv[])
             i++;
             dev_num = atoi(argv[i]);
         }
+        if(!strcmp(argv[i],"-N"))
+        {
+            i++;
+            N_wr = atoi(argv[i]);
+        }
+        if(!strcmp(argv[i], "-p"))
+            print = 1;
         if(!strcmp(argv[i], "-v"))
             verbose = 1;
         if(!strcmp(argv[i], "--gpu"))
@@ -282,8 +293,8 @@ int main(int argc, char *argv[])
     // Allocate Memory
     void *buf;
     uint8_t *hostbuf=NULL;
-    hostbuf = (uint8_t*)malloc(PACKET_SIZE*WR_N);
-    int buf_size = PACKET_SIZE * WR_N;
+    hostbuf = (uint8_t*)malloc(PACKET_SIZE*WR_N*N_wr);
+    int buf_size = PACKET_SIZE * WR_N * N_wr;
     printf("gpudirect: %d\n", gpudirect);
     if(gpudirect)
     {
@@ -417,11 +428,14 @@ int main(int argc, char *argv[])
         {
             if(gpudirect)
             {
-                cudaMemcpy(hostbuf, buf_char+wc[0].wr_id*PACKET_SIZE, PACKET_SIZE*msgs_completed, cudaMemcpyDeviceToHost);
+                if(print)cudaMemcpy(hostbuf, buf_char+wc[0].wr_id*PACKET_SIZE, PACKET_SIZE*msgs_completed, cudaMemcpyDeviceToHost);
                 for(int i=0; i<msgs_completed; i++)
                 {
-                    printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
-                    printf("data[0-1]: 0x%x, %d\n", hostbuf[i*PACKET_SIZE+42], hostbuf[i*PACKET_SIZE+43]+hostbuf[i*PACKET_SIZE+44]*256);
+                    if(print)
+                    {
+                        printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
+                        printf("data[0-1]: 0x%x, %d\n", hostbuf[i*PACKET_SIZE+42], hostbuf[i*PACKET_SIZE+43]+hostbuf[i*PACKET_SIZE+44]*256);
+                    }
                     wr.wr_id = wc[i].wr_id;
                     wr.sg_list = &sg_entry[wc[i].wr_id];
                     ibv_post_recv(qp, &wr, &bad_wr);
@@ -431,8 +445,11 @@ int main(int argc, char *argv[])
             {
                 for(int i = 0; i < msgs_completed; i++)
                 {
-                    printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
-                    printf("data[0-1]: 0x%x, %d\n", buf_char[wc[i].wr_id*PACKET_SIZE+42],buf_char[wc[i].wr_id*PACKET_SIZE+43] +buf_char[wc[i].wr_id*PACKET_SIZE+44]*256 );
+                    if(print)
+                    {
+                        printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
+                        printf("data[0-1]: 0x%x, %d\n", buf_char[wc[i].wr_id*PACKET_SIZE+42],buf_char[wc[i].wr_id*PACKET_SIZE+43] +buf_char[wc[i].wr_id*PACKET_SIZE+44]*256 );
+                    }
                     wr.wr_id = wc[i].wr_id;
                     wr.sg_list = &sg_entry[wc[i].wr_id];
                     ibv_post_recv(qp, &wr, &bad_wr);
