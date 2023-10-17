@@ -84,6 +84,9 @@ void print_port_attr(struct ibv_port_attr *port_attr)
     printf("active_width: %d\n", port_attr->active_width);
     printf("active_speed: %d\n", port_attr->active_speed);
     printf("phys_state: %d\n", port_attr->phys_state);
+    printf("link_layer: %d\n", port_attr->link_layer);
+    printf("flags: %d\n", port_attr->flags);
+    printf("port_cap_flags2: %d\n", port_attr->port_cap_flags2);
     printf("********************************************************************\n");
 }
 

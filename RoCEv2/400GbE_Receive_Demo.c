@@ -84,6 +84,9 @@ void print_port_attr(struct ibv_port_attr *port_attr)
     printf("active_width: %d\n", port_attr->active_width);
     printf("active_speed: %d\n", port_attr->active_speed);
     printf("phys_state: %d\n", port_attr->phys_state);
+    printf("link_layer: %d\n", port_attr->link_layer);
+    printf("flags: %d\n", port_attr->flags);
+    printf("port_cap_flags2: %d\n", port_attr->port_cap_flags2);
     printf("********************************************************************\n");
 }
 
@@ -296,6 +299,7 @@ int main(int argc, char *argv[])
     unsigned int flag = 1;
     hostbuf = (uint8_t*)malloc(PACKET_SIZE*WR_N*N_wr);
     int buf_size = PACKET_SIZE * WR_N * N_wr;
+    printf("buf_size = %d\n", buf_size);
     printf("gpudirect: %d\n", gpudirect);
     
     if(gpudirect)
@@ -326,6 +330,7 @@ int main(int argc, char *argv[])
     mr = ibv_reg_mr(pd, buf, buf_size, IBV_ACCESS_LOCAL_WRITE);
     if(!mr){
         fprintf(stderr, "Failed to register mr.\n");
+        printf("%s\n", strerror(errno));
         exit(1);
     }
     else
@@ -407,8 +412,11 @@ int main(int argc, char *argv[])
     struct pollfd pfd;
     int poll_rc = 0;
     int total_recv = 0;
+    int mr_id = WR_N;
+    int i=0;
     while(1)
     {
+        /*
         pfd.fd = recv_cc->fd;
         pfd.events = POLLIN;
         pfd.revents = 0;
@@ -431,7 +439,7 @@ int main(int argc, char *argv[])
             perror("ibv_req_notify_cq");
             exit(1);
         }
-
+        */
         msgs_completed = ibv_poll_cq(cq, WR_N, wc);
         total_recv += msgs_completed;
         if(msgs_completed > 0)
@@ -439,7 +447,7 @@ int main(int argc, char *argv[])
             if(gpudirect)
             {
                 if(print)cudaMemcpy(hostbuf, buf_char+wc[0].wr_id*PACKET_SIZE, PACKET_SIZE*msgs_completed, cudaMemcpyDeviceToHost);
-                for(int i=0; i<msgs_completed; i++)
+                for(i=0; i<msgs_completed; i++)
                 {
                     if(print)
                     {
@@ -447,6 +455,9 @@ int main(int argc, char *argv[])
                         printf("data[0-1]: 0x%x, %d\n", hostbuf[i*PACKET_SIZE+42], hostbuf[i*PACKET_SIZE+43]+hostbuf[i*PACKET_SIZE+44]*256);
                     }
                     wr.wr_id = wc[i].wr_id;
+                    mr_id = mr_id%(WR_N*N_wr);
+                    sg_entry[wc[i].wr_id].addr = (uint64_t)(buf)+mr_id*PACKET_SIZE;
+                    mr_id++;
                     wr.sg_list = &sg_entry[wc[i].wr_id];
                     ibv_post_recv(qp, &wr, &bad_wr);
                 }
@@ -465,7 +476,7 @@ int main(int argc, char *argv[])
                     ibv_post_recv(qp, &wr, &bad_wr);
                 }
             }
-        printf("total_recv: %d\n",total_recv);   
+            printf("total_recv: %d\n",total_recv);   
         }else if(msgs_completed < 0)
         {
             printf("Polling error\n");
