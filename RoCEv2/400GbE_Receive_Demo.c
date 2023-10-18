@@ -133,7 +133,7 @@ void print_helper()
 
 int main(int argc, char *argv[])
 {
-    int dev_num = 1;
+    int dev_num = 0;
     int verbose = 0;
     int N_wr = 1;
     int print = 0;
