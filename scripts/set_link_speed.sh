@@ -1,6 +1,6 @@
 #! /bin/bash
 
-eth='ens6np0'
+eth='ens4np0'
 dev='mlx5_0'
 
 if [ ! $1 ] ;then
