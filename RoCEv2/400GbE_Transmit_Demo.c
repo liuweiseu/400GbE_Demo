@@ -6,7 +6,7 @@
 
 #include "packet.h"
 
-#define WR_N 16384
+#define WR_N 1024
 
 #define DELAY	0
 
@@ -317,7 +317,9 @@ int main(int argc, char *argv[])
     for(int i=0; i < WR_N; i++)
     {
         pkt = (struct packet *)(buf+i*PACKET_SIZE);
-        if(i%2==0)
+        //memcpy(pkt->dst_mac, dst_mac, 6);
+		
+		if(i%2==0)
 			memcpy(pkt->dst_mac, dst_mac, 6);
         else
 		{
@@ -326,6 +328,7 @@ int main(int argc, char *argv[])
 			else
 				memcpy(pkt->dst_mac, dst_mac1, 6);
 		}
+		
 		memcpy(pkt->src_mac, src_mac, 6);
         if(woip == 0)
         {
@@ -380,27 +383,43 @@ int main(int argc, char *argv[])
     int ns = 0;
     if(inf)
     {
-        for(i = 0; i < WR_N; i++)
-        {
-            state = ibv_post_send(qp, &wr[i], &bad_wr);
-            if (state < 0) {
-                fprintf(stderr, "failed in post send\n");
-                exit(1);
-            }
-        } 
+		while(1)
+		{
+			for(i = 0; i < WR_N; i++)
+			{
+				state = ibv_post_send(qp, &wr[i], &bad_wr);	
+				if (state < 0) {
+					fprintf(stderr, "failed in post send\n");
+					exit(1);
+				}
+			}
+			ns = 0;
+			while(ns < WR_N)
+			{
+				msc = ibv_poll_cq(cq, WR_N, wc);
+				ns += msc;
+			}
+				
+		}
+
+		/*
         while(1)
         {
             msc = ibv_poll_cq(cq, WR_N, wc);
-            for(i = 0; i < msc; i++)
-            {
-                state = ibv_post_send(qp, &wr[wc[i].wr_id], &bad_wr);
-				//for(int k=0;k<DELAY;k++);
-                if (state < 0) {
-                    fprintf(stderr, "failed in post send\n");
-                    exit(1);
-                }
-            } 
+            if(msc > 0)
+			{
+				for(i = 0; i < msc; i++)
+				{
+					state = ibv_post_send(qp, &wr[wc[i].wr_id], &bad_wr);
+					//for(int k=0;k<DELAY;k++);
+					if (state < 0) {
+						fprintf(stderr, "failed in post send\n");
+						exit(1);
+					}
+				}
+			}
         } 
+		*/
     }
     else
     {
