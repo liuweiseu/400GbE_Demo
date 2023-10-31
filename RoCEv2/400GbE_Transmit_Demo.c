@@ -8,7 +8,11 @@
 
 #define WR_N 16384
 
+#define DELAY	0
+
 unsigned char dst_mac[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38};
+unsigned char dst_mac1[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x39};
+
 unsigned char src_mac[6] = {0xa0, 0x88, 0xc2, 0x0d, 0x5e, 0x28};
 unsigned char eth_type[2] = {0x08, 0x00};
 unsigned char ip_hdrs[12] = {0x45, 0x00, 0x1f, 0x54, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11, 0xaf, 0xb6};
@@ -126,7 +130,8 @@ void print_helper()
     printf("    -h, print out the helper information.\n");
     printf("    -v, print out the query information.\n");
     printf("    -d, device number. '0' means mlx5_0.\n");
-    printf("    -n, the number of work request. the default values 1; the max value is 16384.\n");
+    printf("    --md, multi dst addresses.\n");
+	printf("    -n, the number of work request. the default values 1; the max value is 16384.\n");
     printf("    -N, the number of groups of work request. the number in each wr group is 16384.\n");
     printf("    --inf, keeping sending out data.\n");
     printf("    --woip, send raw ethernet packet without IP setting.\n");
@@ -140,6 +145,7 @@ int main(int argc, char *argv[])
     int n_wr = 1;
     int N_wr = 0;
     int woip = 0;
+	int md = 0;
     for(int i=1; i < argc;)
     {
         if(!strcmp(argv[i],"-d"))
@@ -161,6 +167,8 @@ int main(int argc, char *argv[])
             i++;
             N_wr = atoi(argv[i]); 
         }
+		if(!strcmp(argv[i], "--md"))
+			md = 1;
         if(!strcmp(argv[i], "--woip"))
             woip = 1;
         if(!strcmp(argv[i], "-h"))
@@ -309,8 +317,16 @@ int main(int argc, char *argv[])
     for(int i=0; i < WR_N; i++)
     {
         pkt = (struct packet *)(buf+i*PACKET_SIZE);
-        memcpy(pkt->dst_mac, dst_mac, 6);
-        memcpy(pkt->src_mac, src_mac, 6);
+        if(i%2==0)
+			memcpy(pkt->dst_mac, dst_mac, 6);
+        else
+		{
+			if(md == 0)
+				memcpy(pkt->dst_mac, dst_mac, 6);
+			else
+				memcpy(pkt->dst_mac, dst_mac1, 6);
+		}
+		memcpy(pkt->src_mac, src_mac, 6);
         if(woip == 0)
         {
             memcpy(pkt->eth_type, eth_type, 2);
@@ -375,10 +391,10 @@ int main(int argc, char *argv[])
         while(1)
         {
             msc = ibv_poll_cq(cq, WR_N, wc);
-            ns += msc;
             for(i = 0; i < msc; i++)
             {
-                state = ibv_post_send(qp, &wr[wc[ns%WR_N].wr_id], &bad_wr);
+                state = ibv_post_send(qp, &wr[wc[i].wr_id], &bad_wr);
+				//for(int k=0;k<DELAY;k++);
                 if (state < 0) {
                     fprintf(stderr, "failed in post send\n");
                     exit(1);
@@ -394,6 +410,7 @@ int main(int argc, char *argv[])
                 for(i = 0; i < WR_N; i++)
                 {
                     state = ibv_post_send(qp, &wr[i], &bad_wr);
+					//for(int k=0; k<DELAY; k++);
                     if (state < 0) {
                         fprintf(stderr, "failed in post send\n");
                         exit(1);
