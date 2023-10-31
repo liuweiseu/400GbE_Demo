@@ -394,7 +394,9 @@ int main(int argc, char *argv[])
         }
         }
     };
-
+	char dst_mac[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x39};
+	if(gpu==1)
+		memcpy(flow_attr.spec_eth.val.dst_mac, dst_mac,6);
     //create steering rule
     struct ibv_flow *eth_flow;
     eth_flow = ibv_create_flow(qp, &flow_attr.attr);
