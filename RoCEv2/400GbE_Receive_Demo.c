@@ -10,7 +10,7 @@
 
 #include "packet.h"
 
-#define WR_N 16384
+#define WR_N 32768
 
 #define SRC_MAC {0xa0, 0x88, 0xc2, 0x0d, 0x5e, 0x28}
 #define DST_MAC {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38}
@@ -125,7 +125,8 @@ void print_helper()
     printf("Options:\n");
     printf("    -h, print out the helper information.\n");
     printf("    -v, print out the query information.\n");
-    printf("    -d, device number. '0' means mlx5_0.\n");
+    printf("    -d, NIC dev number. '0' means mlx5_0.\n");
+	printf("    -g, gpu dev number. '0' means gpu0.\n");
     printf("    -N, the number of groups of wr. the number of wr in each group is 16384.\n");
     printf("    -p, print out the data for verification.\n");
     printf("    --gpu, allocate memory on GPU. the memory is allocated on the host by default.\n");
@@ -138,6 +139,7 @@ int main(int argc, char *argv[])
     int N_wr = 1;
     int print = 0;
     int gpudirect = 0;
+	int gpu = 0;
     for(int i=1; i < argc;)
     {
         if(!strcmp(argv[i],"-d"))
@@ -152,6 +154,11 @@ int main(int argc, char *argv[])
         }
         if(!strcmp(argv[i], "-p"))
             print = 1;
+		if(!strcmp(argv[i], "-g"))
+		{
+			i++;
+			gpu = atoi(argv[i]);
+		}
         if(!strcmp(argv[i], "-v"))
             verbose = 1;
         if(!strcmp(argv[i], "--gpu"))
@@ -300,7 +307,8 @@ int main(int argc, char *argv[])
     
     if(gpudirect)
     {
-        printf("Allocating mem on GPU...\n");
+        printf("Allocating mem on GPU%d...\n", gpu);
+		cudaSetDevice(gpu);
         state = cudaMalloc((void **) &buf, buf_size);
         if(state == 0)
             printf("Allocate GPU memory successfully!\n");
@@ -401,7 +409,7 @@ int main(int argc, char *argv[])
 
     struct ibv_cq *ev_cq;
     int ev_cq_ctx;
-
+    
     printf("ready to go!\n");
 
     struct pollfd pfd;
@@ -409,6 +417,7 @@ int main(int argc, char *argv[])
     int total_recv = 0;
     while(1)
     {
+        /*
         pfd.fd = recv_cc->fd;
         pfd.events = POLLIN;
         pfd.revents = 0;
@@ -431,7 +440,7 @@ int main(int argc, char *argv[])
             perror("ibv_req_notify_cq");
             exit(1);
         }
-
+        */
         msgs_completed = ibv_poll_cq(cq, WR_N, wc);
         total_recv += msgs_completed;
         if(msgs_completed > 0)
@@ -460,6 +469,7 @@ int main(int argc, char *argv[])
                         printf("message %ld received size %d\n", wc[i].wr_id, wc[i].byte_len);
                         printf("data[0-1]: 0x%x, %d\n", buf_char[wc[i].wr_id*PACKET_SIZE+42],buf_char[wc[i].wr_id*PACKET_SIZE+43] +buf_char[wc[i].wr_id*PACKET_SIZE+44]*256 );
                     }
+                    
                     wr.wr_id = wc[i].wr_id;
                     wr.sg_list = &sg_entry[wc[i].wr_id];
                     ibv_post_recv(qp, &wr, &bad_wr);
