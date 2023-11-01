@@ -3,12 +3,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <sys/time.h>
 
+#include "get_clock.h"
 #include "packet.h"
+
+#define ELAPSED_NS(start,stop) \
+    (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
 #define WR_N 1024
 
-#define DELAY	0
+//#define DELAY	500
 
 unsigned char dst_mac[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38};
 unsigned char dst_mac1[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x39};
@@ -130,6 +135,7 @@ void print_helper()
     printf("    -h, print out the helper information.\n");
     printf("    -v, print out the query information.\n");
     printf("    -d, device number. '0' means mlx5_0.\n");
+	printf("    -l, speed limit(Gbps)");
     printf("    --md, multi dst addresses.\n");
 	printf("    -n, the number of work request. the default values 1; the max value is 16384.\n");
     printf("    -N, the number of groups of work request. the number in each wr group is 16384.\n");
@@ -146,7 +152,14 @@ int main(int argc, char *argv[])
     int N_wr = 0;
     int woip = 0;
 	int md = 0;
-    for(int i=1; i < argc;)
+	int speed_limit = 0;
+	struct timespec ts_start;
+    struct timespec ts_now;
+	struct timespec ts_burst_start;
+    struct timespec ts_burst_end;
+    uint64_t ns_elapsed;
+	double gbps;
+	for(int i=1; i < argc;)
     {
         if(!strcmp(argv[i],"-d"))
         {
@@ -161,6 +174,11 @@ int main(int argc, char *argv[])
         {
             i++;
             n_wr = atoi(argv[i]); 
+        }
+		 if(!strcmp(argv[i], "-l"))
+        {
+            i++;
+            speed_limit = atoi(argv[i]); 
         }
         if(!strcmp(argv[i], "-N"))
         {
@@ -178,6 +196,11 @@ int main(int argc, char *argv[])
         }
         i++;
     }
+	int gap_time = 0;
+	if(speed_limit != 0)
+	{
+		gap_time = (int)(WR_N*PACKET_SIZE*8/speed_limit);
+	}
     struct ibv_device **dev_list;
     int ndev;
     // get the device list
@@ -381,6 +404,7 @@ int main(int argc, char *argv[])
     // ready to send
     int i, j;
     int ns = 0;
+	unsigned long long clk_cycles = 0;
     if(inf)
     {
 		while(1)
@@ -424,8 +448,11 @@ int main(int argc, char *argv[])
     else
     {
         if(N_wr != 0){
-            for(j = 0; j<N_wr; j++)
+			clock_gettime(CLOCK_MONOTONIC_RAW, &ts_start);
+            clk_cycles = get_cycles();
+			for(j = 0; j<N_wr; j++)
             {
+				clock_gettime(CLOCK_MONOTONIC_RAW, &ts_burst_start);
                 for(i = 0; i < WR_N; i++)
                 {
                     state = ibv_post_send(qp, &wr[i], &bad_wr);
@@ -436,13 +463,32 @@ int main(int argc, char *argv[])
                     }
                 } 
                 // we need to wait until all the wr are completed.
-                while(ns < WR_N)
+				while(ns < WR_N)
                 {
                     msc = ibv_poll_cq(cq, WR_N, wc);
                     ns += msc;
                 }
                 ns = 0;
-            }
+				// add some delay
+				clock_gettime(CLOCK_MONOTONIC_RAW, &ts_burst_end);
+				ns_elapsed = ELAPSED_NS(ts_burst_start, ts_burst_end);
+				if(speed_limit != 0)
+				{
+					while(ns_elapsed < gap_time)
+					{
+						clock_gettime(CLOCK_MONOTONIC_RAW, &ts_burst_end);
+						ns_elapsed = ELAPSED_NS(ts_burst_start, ts_burst_end);
+					}
+				}
+				ns_elapsed = 0;
+			}
+			clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now);
+			clk_cycles = get_cycles() - clk_cycles;
+			ns_elapsed = ELAPSED_NS(ts_start, ts_now); 
+			gbps = 	8.0 * PACKET_SIZE * N_wr * WR_N / ns_elapsed ;
+			printf("ns_elapsed: %ld\n", ns_elapsed);
+			printf("clk_cycles: %lld\n", clk_cycles);
+			printf("bandwidth: %.2f Gbps\n", gbps);
         }
         else
         {
