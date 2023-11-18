@@ -13,12 +13,12 @@ fi
 
 if [ $1 == '--performance' ] ;then
     nvidia-smi -lmc=8001,8001
-	nvidia-smi -lgc=1800
+	#nvidia-smi -lgc=1800
 	echo 'Done.'
 fi
 
 if [ $1 == '--powersave' ] ;then
 	nvidia-smi -rmc
-	nvidia-smi -rgc
+	#nvidia-smi -rgc
 	echo 'Done.'
 fi
