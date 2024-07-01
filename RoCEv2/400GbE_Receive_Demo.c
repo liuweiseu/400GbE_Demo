@@ -38,6 +38,16 @@
 
 #define SRC_MAC {0xa0, 0x88, 0xc2, 0x0d, 0x5e, 0x28}
 #define DST_MAC {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38}
+/*
+#define SRC_IP  0xc0a80302
+#define DST_IP  0xc0a8030c
+#define SRC_PORT 0x05d4
+#define DST_PORT 0x05d4
+*/
+#define SRC_IP  0x0203a8c0
+#define DST_IP  0x0c03a8c0
+#define SRC_PORT 0xd405
+#define DST_PORT 0xd405
 #define ETH_TYPE {0x08, 0x00}
 
 /***********************************CUDA*******************************************/
@@ -416,11 +426,11 @@ int main(int argc, char *argv[])
     
     if(gpudirect)
     {
-        init_gpu(gpu);
+        //init_gpu(gpu);
         printf("Allocating mem on GPU%d...\n", gpu);
-		//cudaSetDevice(gpu);
-        //state = cudaMalloc((void **) &buf, buf_size);
-        state = cuMemAlloc((void **) &buf, buf_size);
+		cudaSetDevice(gpu);
+        state = cudaMalloc((void **) &buf, buf_size);
+        //state = cuMemAlloc((void **) &buf, buf_size);
         if(state == 0)
             printf("Allocate GPU memory successfully!\n");
         else
@@ -478,34 +488,62 @@ int main(int argc, char *argv[])
     struct raw_eth_flow_attr {
     struct ibv_flow_attr attr;
     struct ibv_flow_spec_eth spec_eth;
+    struct ibv_flow_spec_ipv4 spec_ipv4;
+    struct ibv_flow_spec_tcp_udp spec_udp;
     } __attribute__((packed)) flow_attr = {
+    //}  flow_attr = {
         .attr = {
-        .comp_mask = 0,
-        .type = IBV_FLOW_ATTR_NORMAL,
-        .size = sizeof(flow_attr),
-        .priority = 0,
-        .num_of_specs = 1,
-        .port = 1,
-        .flags = 0,
+            .comp_mask = 0,
+            .type = IBV_FLOW_ATTR_NORMAL,
+            .size = sizeof(flow_attr),
+            .priority = 0,
+            .num_of_specs = 3,
+            .port = 1,
+            .flags = 0,
         },
         .spec_eth = {
-        .type = IBV_FLOW_SPEC_ETH,
-        .size = sizeof(struct ibv_flow_spec_eth),
-        .val = {
-            .dst_mac = DST_MAC,
-            .src_mac = SRC_MAC,
-            .ether_type = 0,
-            .vlan_tag = 0,
+            .type = IBV_FLOW_SPEC_ETH,
+            .size = sizeof(struct ibv_flow_spec_eth),
+            .val = {
+                .dst_mac = DST_MAC,
+                .src_mac = SRC_MAC,
+                .ether_type = 0,
+                .vlan_tag = 0,
+            },
+            .mask = {
+                .dst_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+                .src_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+                .ether_type = 0,
+                .vlan_tag = 0,
+            }
         },
-        .mask = {
-            .dst_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-            .src_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-            .ether_type = 0,
-            .vlan_tag = 0,
-        }
+        .spec_ipv4 = {
+            .type = IBV_FLOW_SPEC_IPV4,
+            .size = sizeof(struct ibv_flow_spec_ipv4),
+            .val = {
+                .src_ip = SRC_IP,
+                .dst_ip = DST_IP,
+            },
+            .mask = {
+                .src_ip = 0xffffffff,
+                .dst_ip = 0xffffffff,
+            }
+        },
+        .spec_udp = {
+            .type = IBV_FLOW_SPEC_UDP,
+            .size = sizeof(struct ibv_flow_spec_tcp_udp),
+            .val = {
+                .dst_port = DST_PORT,
+                .src_port = SRC_PORT,
+            },
+            .mask = 
+            {
+                .dst_port = 0xffff,
+                .src_port = 0xffff,
+            } 
         }
     };
-	char dst_mac[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x39};
+	char dst_mac[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38};
 	if(gpu==1)
 		memcpy(flow_attr.spec_eth.val.dst_mac, dst_mac,6);
     //create steering rule
