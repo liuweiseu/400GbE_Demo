@@ -338,7 +338,7 @@ int main(int argc, char *argv[])
     struct ibv_cq *cq;
     struct ibv_comp_channel *recv_cc=NULL;
     recv_cc = ibv_create_comp_channel(context);
-    cq = ibv_create_cq(context, WR_N, NULL, NULL, 0);
+    cq = ibv_create_cq(context, WR_N, NULL, recv_cc, 0);
     if(!cq){
         fprintf(stderr, "Couldn't create CQ.\n");
         exit(1);
@@ -428,7 +428,7 @@ int main(int argc, char *argv[])
             printf("Failed to allocate GPU memory.\n");
             exit(1);
         }
-        state = cuPointerSetAttribute(&flag, CU_POINTER_ATTRIBUTE_SYNC_MEMOPS, (uintptr_t)buf);
+        //state = cuPointerSetAttribute(&flag, CU_POINTER_ATTRIBUTE_SYNC_MEMOPS, (uintptr_t)buf);
         if(state == 0)
             printf("Pinned GPU memory successfully!\n");
         else
@@ -547,7 +547,7 @@ int main(int argc, char *argv[])
 			}
 			
 		}
-		/*
+		
 		pfd.fd = recv_cc->fd;
         pfd.events = POLLIN;
         pfd.revents = 0;
@@ -570,8 +570,8 @@ int main(int argc, char *argv[])
             perror("ibv_req_notify_cq");
             exit(1);
         }
-		*/
-		msgs_completed = ibv_poll_cq(cq, 16, wc);
+		
+		msgs_completed = ibv_poll_cq(cq, WR_N, wc);
         total_recv += msgs_completed;
         
 		if(msgs_completed > 0)
