@@ -335,14 +335,17 @@ int main(int argc, char *argv[])
     if(verbose)
         print_pkey(pkey);
 
+    printf("*********************************\n");
+// create pd-0 and other resources for pd-0
     // create protection domain
     struct ibv_pd *pd;
     pd = ibv_alloc_pd(context);
     if(!pd)
     {
-        fprintf(stderr, "Couldn't allocate PD.\n");
+        fprintf(stderr, "Couldn't allocate PD-0.\n");
         exit(1);
-    }
+    }else
+        printf("Protection Domain 0 created!\n");
 
     // create completion queue
     struct ibv_cq *cq;
@@ -554,6 +557,229 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    printf("*********************************\n");
+
+// create pd-1 and other resources for pd-1
+    // create protection domain
+    struct ibv_pd *pd1;
+    pd1 = ibv_alloc_pd(context);
+    if(!pd1)
+    {
+        fprintf(stderr, "Couldn't allocate PD-1.\n");
+        exit(1);
+    }else
+        printf("Protection Domain 1 created!\n");
+
+    // create completion queue
+    struct ibv_cq *cq1;
+    struct ibv_comp_channel *recv_cc1=NULL;
+    recv_cc1 = ibv_create_comp_channel(context);
+    cq1 = ibv_create_cq(context, WR_N, NULL, NULL, 0);
+    if(!cq1){
+        fprintf(stderr, "Couldn't create CQ-1.\n");
+        exit(1);
+    }
+    
+    if(ibv_req_notify_cq(cq1, 0)) {
+        perror("ibv_req_notify_cq");
+        exit(1);
+    } 
+    // create qp
+    struct ibv_qp *qp1;
+    struct ibv_qp_init_attr qp_init_attr1 = {
+        .qp_context = NULL,
+        .send_cq = cq1,
+        .recv_cq = cq1,
+        .cap = {
+            .max_send_wr = 0,
+            .max_recv_sge = 1,
+            .max_recv_wr = WR_N
+        },
+        .qp_type = IBV_QPT_RAW_PACKET,
+    };
+    qp1 = ibv_create_qp(pd1, &qp_init_attr1);
+
+    // Initialize the QP
+    struct ibv_qp_attr qp_attr1;
+    int qp_flags1;
+    memset(&qp_attr1, 0, sizeof(qp_attr1));
+    qp_flags1 = IBV_QP_STATE | IBV_QP_PORT;
+    qp_attr1.qp_state = IBV_QPS_INIT;
+    qp_attr1.port_num = 1;
+    state = ibv_modify_qp(qp1, &qp_attr1, qp_flags1);
+    if(state < 0)
+    {
+        fprintf(stderr, "Failed to init qp.\n");
+        exit(1);
+    }
+    else
+        printf("QP-1 init successfully!\n");
+    
+    memset(&qp_attr1, 0, sizeof(qp_attr1));
+
+    // move the ring to receiver
+    qp_flags1 = IBV_QP_STATE;
+    qp_attr1.qp_state = IBV_QPS_RTR;
+    state = ibv_modify_qp(qp1, &qp_attr1, qp_flags1);
+    if(state < 0)
+    {
+        fprintf(stderr, "Failed to modify qp to RTR.\n");
+        exit(1);
+    }
+    else
+        printf("QP is ready to receiver data!\n");
+
+	// move the ring to send
+    memset(&qp_attr1, 0, sizeof(qp_attr1));
+    qp_flags1 = IBV_QP_STATE;
+    qp_attr1.qp_state = IBV_QPS_RTS;
+    state = ibv_modify_qp(qp1, &qp_attr1, qp_flags1);
+    if(state < 0)
+    {
+        fprintf(stderr, "Failed to modify qp to RTS.\n");
+        exit(1);
+    }
+    else
+        printf("QP is ready to send data!\n");
+
+    // Allocate Memory
+    void *buf1;
+    uint8_t *hostbuf1=NULL;
+    unsigned int flag1 = 1;
+    hostbuf1 = (uint8_t*)malloc(PACKET_SIZE*WR_N*N_wr);
+    int buf_size1 = PACKET_SIZE * WR_N * N_wr;
+    printf("gpudirect: %d\n", gpudirect);
+    
+    if(gpudirect)
+    {
+        //init_gpu(gpu);
+        printf("Allocating mem on GPU%d...\n", gpu+1);
+		cudaSetDevice(gpu+1);
+        state = cudaMalloc((void **) &buf1, buf_size1);
+        //state = cuMemAlloc((void **) &buf, buf_size);
+        if(state == 0)
+            printf("Allocate GPU memory successfully!\n");
+        else
+        {
+            printf("Failed to allocate GPU memory.\n");
+            exit(1);
+        }
+        state = cuPointerSetAttribute(&flag1, CU_POINTER_ATTRIBUTE_SYNC_MEMOPS, (uintptr_t)buf1);
+        if(state == 0)
+            printf("Pinned GPU-1 memory successfully!\n");
+        else
+        {
+            printf("Failed to pin GPU memory.\n");
+            exit(1);
+        }
+    }
+    else
+        buf1 = malloc(buf_size1);
+    uint8_t *buf_char1 = (uint8_t*)buf1;
+    // register memory
+    struct ibv_mr *mr1;
+    mr1 = ibv_reg_mr(pd1, buf1, buf_size1, IBV_ACCESS_LOCAL_WRITE);
+    if(!mr1){
+        fprintf(stderr, "Failed to register mr-1.\n");
+        exit(1);
+    }
+    else
+        printf("Register mr-1 successfully!\n");
+
+    // create sge
+    struct ibv_sge sg_entry1[WR_N];
+    for(int i=0; i< WR_N; i++)
+    {
+        sg_entry1[i].addr = (uint64_t)(buf1)+i*PACKET_SIZE;
+        sg_entry1[i].length = PACKET_SIZE ;
+        sg_entry1[i].lkey = mr->lkey;
+    }
+
+    // create wr
+    struct ibv_recv_wr wr1, *bad_wr1;
+    for(int i=0; i< WR_N; i++)
+    {
+        memset(&wr1, 0, sizeof(wr));
+        wr1.num_sge = 1;
+        /* each descriptor points to max MTU size buffer */
+        sg_entry1[i].addr = (uint64_t)buf1 + PACKET_SIZE*i;
+        wr1.sg_list= &sg_entry[i];
+        wr1.next = NULL;
+        wr1.wr_id = i;
+        /* post receive buffer to ring */
+        ibv_post_recv(qp1, &wr1, &bad_wr1);
+    }
+
+    // Register steering rule to intercept packet to DEST_MAC and place packet in ring pointed by ->qp
+    struct raw_eth_flow_attr1 {
+    struct ibv_flow_attr attr;
+    struct ibv_flow_spec_eth spec_eth;
+    struct ibv_flow_spec_ipv4 spec_ipv4;
+    struct ibv_flow_spec_tcp_udp spec_udp;
+    } __attribute__((packed)) flow_attr1 = {
+    //}  flow_attr = {
+        .attr = {
+            .comp_mask = 0,
+            .type = IBV_FLOW_ATTR_NORMAL,
+            .size = sizeof(flow_attr1),
+            .priority = 0,
+            .num_of_specs = 3,
+            .port = 1,
+            .flags = 0,
+        },
+        .spec_eth = {
+            .type = IBV_FLOW_SPEC_ETH,
+            .size = sizeof(struct ibv_flow_spec_eth),
+            .val = {
+                .dst_mac = DST_MAC,
+                .src_mac = SRC_MAC,
+                .ether_type = 0,
+                .vlan_tag = 0,
+            },
+            .mask = {
+                .dst_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+                .src_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+                .ether_type = 0,
+                .vlan_tag = 0,
+            }
+        },
+        .spec_ipv4 = {
+            .type = IBV_FLOW_SPEC_IPV4,
+            .size = sizeof(struct ibv_flow_spec_ipv4),
+            .val = {
+                .src_ip = SRC_IP,
+                .dst_ip = DST_IP,
+            },
+            .mask = {
+                .src_ip = 0xffffffff,
+                .dst_ip = 0xffffffff,
+            }
+        },
+        .spec_udp = {
+            .type = IBV_FLOW_SPEC_UDP,
+            .size = sizeof(struct ibv_flow_spec_tcp_udp),
+            .val = {
+                .dst_port = DST_PORT+1,
+                .src_port = SRC_PORT+1,
+            },
+            .mask = 
+            {
+                .dst_port = 0xffff,
+                .src_port = 0xffff,
+            } 
+        }
+    };
+	//char dst_mac[6] = {0x94, 0x6d, 0xae, 0xac, 0xf8, 0x38};
+	if(gpu==1)
+		memcpy(flow_attr1.spec_eth.val.dst_mac, dst_mac,6);
+    //create steering rule
+    struct ibv_flow *eth_flow1;
+    eth_flow1 = ibv_create_flow(qp1, &flow_attr1.attr);
+    if (!eth_flow1) {
+        fprintf(stderr, "Couldn't attach steering flow\n");
+        exit(1);
+    }
+    printf("*********************************\n");
     //
     int msgs_completed;
 	uint64_t ns_elapsed = 0;
