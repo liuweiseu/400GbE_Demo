@@ -692,18 +692,18 @@ int main(int argc, char *argv[])
     {
         sg_entry1[i].addr = (uint64_t)(buf1)+i*PACKET_SIZE;
         sg_entry1[i].length = PACKET_SIZE ;
-        sg_entry1[i].lkey = mr->lkey;
+        sg_entry1[i].lkey = mr1->lkey;
     }
 
     // create wr
     struct ibv_recv_wr wr1, *bad_wr1;
     for(int i=0; i< WR_N; i++)
     {
-        memset(&wr1, 0, sizeof(wr));
+        memset(&wr1, 0, sizeof(wr1));
         wr1.num_sge = 1;
         /* each descriptor points to max MTU size buffer */
         sg_entry1[i].addr = (uint64_t)buf1 + PACKET_SIZE*i;
-        wr1.sg_list= &sg_entry[i];
+        wr1.sg_list= &sg_entry1[i];
         wr1.next = NULL;
         wr1.wr_id = i;
         /* post receive buffer to ring */
@@ -780,7 +780,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
     printf("*********************************\n");
-    //
+    // for qp-0
     int msgs_completed;
 	uint64_t ns_elapsed = 0;
     struct ibv_wc wc[WR_N];
@@ -788,12 +788,27 @@ int main(int argc, char *argv[])
     struct ibv_cq *ev_cq;
     int ev_cq_ctx;
     
-    printf("ready to go!\n");
+    printf("ready to go for qp0!\n");
 
     struct pollfd pfd;
     int poll_rc = 0;
     int total_recv = 0, total_recv_pre = 0;
 
+    /***************************/
+    // for qp-1
+    int msgs_completed1;
+	uint64_t ns_elapsed1 = 0;
+    struct ibv_wc wc1[WR_N];
+
+    struct ibv_cq *ev_cq1;
+    int ev_cq_ctx1;
+    
+    printf("ready to go for qp1!\n");
+
+    struct pollfd pfd1;
+    int poll_rc1 = 0;
+    int total_recv1 = 0, total_recv_pre1 = 0;
+    /***************************/
 	struct timespec ts_start;
     struct timespec ts_now;
 
@@ -807,8 +822,13 @@ int main(int argc, char *argv[])
 			if(total_recv != total_recv_pre)
 			{
 				total_recv_pre = total_recv;
-				printf("total_recv: %d\n",total_recv);
+				printf("total_recv-0: %d\n",total_recv);
 			}
+            if(total_recv1 != total_recv_pre1)
+            {
+                total_recv_pre1 = total_recv1;
+                printf("total_recv-1: %d\n", total_recv1);
+            }
 			
 		}
 		/*
@@ -836,8 +856,10 @@ int main(int argc, char *argv[])
         }
 		*/
 		msgs_completed = ibv_poll_cq(cq, 16, wc);
+        msgs_completed1 = ibv_poll_cq(cq1, 16, wc1);
         total_recv += msgs_completed;
-        
+        total_recv1 += msgs_completed1;
+        /*********for qp-0 *************/
 		if(msgs_completed > 0)
         {
             if(gpudirect)
@@ -872,6 +894,46 @@ int main(int argc, char *argv[])
             } 
 			//printf("total_recv: %d\n",total_recv); 
         }else if(msgs_completed < 0)
+        {
+            printf("Polling error\n");
+            exit(1);
+        }
+
+        /*********for qp-1 *************/
+        if(msgs_completed1 > 0)
+        {
+            if(gpudirect)
+            {
+                if(print)cudaMemcpy(hostbuf1, buf_char1+wc1[0].wr_id*PACKET_SIZE, PACKET_SIZE*msgs_completed1, cudaMemcpyDeviceToHost);
+                for(int i=0; i<msgs_completed1; i++)
+                {
+                    if(print)
+                    {
+                        printf("message %ld received size %d\n", wc1[i].wr_id, wc1[i].byte_len);
+                        printf("data[0-1]: 0x%x, %d\n", hostbuf1[i*PACKET_SIZE+42], hostbuf1[i*PACKET_SIZE+43]+hostbuf1[i*PACKET_SIZE+44]*256);
+                    }
+                    wr1.wr_id = wc1[i].wr_id;
+                    wr1.sg_list = &sg_entry1[wc[i].wr_id];
+                    ibv_post_recv(qp1, &wr1, &bad_wr1);
+                }
+            }
+            else
+            {
+                for(int i = 0; i < msgs_completed1; i++)
+                {
+                    if(print)
+                    {
+                        printf("message %ld received size %d\n", wc1[i].wr_id, wc1[i].byte_len);
+                        printf("data[0-1]: 0x%x, %d\n", buf_char1[wc1[i].wr_id*PACKET_SIZE+42],buf_char1[wc1[i].wr_id*PACKET_SIZE+43] +buf_char1[wc1[i].wr_id*PACKET_SIZE+44]*256 );
+                    }
+                    
+                    wr1.wr_id = wc1[i].wr_id;
+                    wr1.sg_list = &sg_entry1[wc1[i].wr_id];
+                    ibv_post_recv(qp1, &wr1, &bad_wr1);
+                }
+            } 
+			//printf("total_recv: %d\n",total_recv); 
+        }else if(msgs_completed1 < 0)
         {
             printf("Polling error\n");
             exit(1);
