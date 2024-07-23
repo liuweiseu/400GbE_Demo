@@ -563,6 +563,7 @@ int main(int argc, char *argv[])
     // create protection domain
     struct ibv_pd *pd1;
     pd1 = ibv_alloc_pd(context);
+    //pd1 = pd;
     if(!pd1)
     {
         fprintf(stderr, "Couldn't allocate PD-1.\n");
@@ -913,7 +914,7 @@ int main(int argc, char *argv[])
                         printf("data[0-1]: 0x%x, %d\n", hostbuf1[i*PACKET_SIZE+42], hostbuf1[i*PACKET_SIZE+43]+hostbuf1[i*PACKET_SIZE+44]*256);
                     }
                     wr1.wr_id = wc1[i].wr_id;
-                    wr1.sg_list = &sg_entry1[wc[i].wr_id];
+                    wr1.sg_list = &sg_entry1[wc1[i].wr_id];
                     ibv_post_recv(qp1, &wr1, &bad_wr1);
                 }
             }
