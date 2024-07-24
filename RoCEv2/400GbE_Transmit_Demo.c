@@ -23,7 +23,7 @@ unsigned char eth_type[2] = {0x08, 0x00};
 unsigned char ip_hdrs[12] = {0x45, 0x00, 0x1f, 0x54, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11, 0xaf, 0xb6};
 unsigned char src_ip[4] = {192,168,3,2};
 unsigned char dst_ip[4] = {192,168,3,12};
-unsigned char udp_hdr[8] = {0x05, 0xd4, 0x05, 0xd4, 0x1f, 0x40, 0x00, 0x00};
+unsigned char udp_hdr[8] = {0x06, 0xd4, 0x06, 0xd4, 0x1f, 0x40, 0x00, 0x00};
 
 void print_dev_attr(struct ibv_device_attr *device_attr)
 {
@@ -135,7 +135,7 @@ void print_helper()
     printf("    -h, print out the helper information.\n");
     printf("    -v, print out the query information.\n");
     printf("    -d, device number. '0' means mlx5_0.\n");
-	printf("    -l, speed limit(Gbps)");
+	printf("    -l, speed limit(Gbps).\n");
     printf("    --md, multi dst addresses.\n");
 	printf("    -n, the number of work request. the default values 1; the max value is 16384.\n");
     printf("    -N, the number of groups of work request. the number in each wr group is 16384.\n");
