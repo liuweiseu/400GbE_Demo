@@ -23,7 +23,10 @@ unsigned char eth_type[2] = {0x08, 0x00};
 unsigned char ip_hdrs[12] = {0x45, 0x00, 0x1f, 0x54, 0x00, 0x00, 0x40, 0x00, 0x40, 0x11, 0xaf, 0xb6};
 unsigned char src_ip[4] = {192,168,3,2};
 unsigned char dst_ip[4] = {192,168,3,12};
-unsigned char udp_hdr[8] = {0x06, 0xd4, 0x06, 0xd4, 0x1f, 0x40, 0x00, 0x00};
+
+// send out packets with different src and dst port number
+unsigned char udp_hdr[8] = {0x05, 0xd4, 0x05, 0xd4, 0x1f, 0x40, 0x00, 0x00};
+unsigned char udp_hdr1[8] = {0x06, 0xd4, 0x06, 0xd4, 0x1f, 0x40, 0x00, 0x00};
 
 void print_dev_attr(struct ibv_device_attr *device_attr)
 {
@@ -337,6 +340,7 @@ int main(int argc, char *argv[])
     int buf_size = PACKET_SIZE * WR_N;
     buf = malloc(PACKET_SIZE*WR_N);
     struct packet *pkt;
+    /*
     for(int i=0; i < WR_N; i++)
     {
         pkt = (struct packet *)(buf+i*PACKET_SIZE);
@@ -365,7 +369,41 @@ int main(int argc, char *argv[])
         pkt->payload[1] = i&0xff;
         pkt->payload[2] = i >> 8;
     }
+    */
+    // send out packets with different src and dst port number
+    for(int i=0; i < WR_N/2; i++)
+    {
+        pkt = (struct packet *)(buf+2*i*PACKET_SIZE);
+        memcpy(pkt->dst_mac, dst_mac, 6);
+        memcpy(pkt->src_mac, src_mac, 6);
+        if(woip == 0)
+        {
+            memcpy(pkt->eth_type, eth_type, 2);
+            memcpy(pkt->ip_hdrs, ip_hdrs, 12);
+            memcpy(pkt->src_ip, src_ip, 4);
+            memcpy(pkt->dst_ip, dst_ip, 4);
+            memcpy(pkt->udp_hdr, udp_hdr, 8);
+        }
+        pkt->payload[0] = 0x55;
+        pkt->payload[1] = 2*i&0xff;
+        pkt->payload[2] = 2*i >> 8;
 
+        pkt = (struct packet *)(buf+(2*i+1)*PACKET_SIZE);
+        memcpy(pkt->dst_mac, dst_mac, 6);
+        memcpy(pkt->src_mac, src_mac, 6);
+        if(woip == 0)
+        {
+            memcpy(pkt->eth_type, eth_type, 2);
+            memcpy(pkt->ip_hdrs, ip_hdrs, 12);
+            memcpy(pkt->src_ip, src_ip, 4);
+            memcpy(pkt->dst_ip, dst_ip, 4);
+            memcpy(pkt->udp_hdr, udp_hdr1, 8);
+        }
+        pkt->payload[0] = 0x55;
+        pkt->payload[1] = (2*i+1)&0xff;
+        pkt->payload[2] = (2*i+1) >> 8;
+
+    }
     // register memory
     struct ibv_mr *mr;
     mr = ibv_reg_mr(pd, buf, buf_size, IBV_ACCESS_LOCAL_WRITE);
