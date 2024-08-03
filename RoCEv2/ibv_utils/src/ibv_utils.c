@@ -5,16 +5,29 @@
 #include "ibv_utils.h"
 
 #define WR_N 512
+#define POLL_N 16
 
 struct ibv_context *ib_global_context[MAX_DEV_NUM];
 struct ibv_pd *ib_global_pd[MAX_DEV_NUM];
 struct ibv_cq *ib_global_cq[MAX_DEV_NUM];
 struct ibv_qp *ib_global_qp[MAX_DEV_NUM];
+struct ibv_mr *ib_global_mr[MAX_DEV_NUM];
 struct ibv_device **ib_global_devs;
 int *num_ib_devices;
 int send_global_wr_num[MAX_DEV_NUM];
 int recv_global_wr_num[MAX_DEV_NUM];
+
+// This is a gloabl variable to record the device id
+// In the ib_send and ib_recv function, the device id will be used
+int global_device_id = 0;
+struct ibv_qp *global_qp = NULL;
+struct ibv_cq *global_cq = NULL;
+struct ibv_wc global_wc[WR_N];
+struct ibv_sge global_sg_entry[WR_N];
 struct ibv_recv_wr global_wr, *global_bad_wr;
+
+int send_completed = WR_N;
+int recv_completed = WR_N;
 
 /* 
 get the ib device list
@@ -153,41 +166,160 @@ int register_memory(int device_id, void *addr, size_t total_length, size_t chunc
 
     // register memory
     // TODO: add more access control
-    struct ibv_mr *mr = ibv_reg_mr(pd, addr, total_length, IBV_ACCESS_LOCAL_WRITE);
+    struct ibv_mr *mr = ib_global_mr[device_id];
+    mr = ibv_reg_mr(pd, addr, total_length, IBV_ACCESS_LOCAL_WRITE);
     if(!mr){
         fprintf(stderr, "Failed to register memory.\n");
         return -1;
     }
     // create sge
     // TODO: the number of sge should be set according to the user's requirement
-    struct ibv_sge sg_entry[WR_N];
-        for(int i=0; i< WR_N; i++)
+    for(int i=0; i< WR_N; i++)
     {
-        sg_entry[i].addr = (uint64_t)(addr)+i*chunck_size;
-        sg_entry[i].length = chunck_size ;
-        sg_entry[i].lkey = mr->lkey;
+        global_sg_entry[i].addr = (uint64_t)(addr)+i*chunck_size;
+        global_sg_entry[i].length = chunck_size ;
+        global_sg_entry[i].lkey = mr->lkey;
     }
     return 0;
 }
 
-
-
-int ib_send()
+/*
+create flow for packet filtering
+*/
+int create_flow(int device_id, struct pkt_info *pkt_info)
 {
+    // get the qp by device id
+    struct ibv_qp *qp = ib_global_qp[device_id];
 
+    // TODO: add more flexible for the flow control
+    // Register steering rule to intercept packet to DEST_MAC and place packet in ring pointed by ->qp
+    struct raw_eth_flow_attr1 {
+    struct ibv_flow_attr attr;
+    struct ibv_flow_spec_eth spec_eth;
+    struct ibv_flow_spec_ipv4 spec_ipv4;
+    struct ibv_flow_spec_tcp_udp spec_udp;
+    } __attribute__((packed)) flow_attr = {
+        .attr = {
+            .comp_mask = 0,
+            .type = IBV_FLOW_ATTR_NORMAL,
+            .size = sizeof(flow_attr),
+            .priority = 0,
+            .num_of_specs = 3,
+            .port = 1,
+            .flags = 0,
+        },
+        .spec_eth = {
+            .type = IBV_FLOW_SPEC_ETH,
+            .size = sizeof(struct ibv_flow_spec_eth),
+            .val = {
+                .dst_mac = 0,
+                .src_mac = 0,
+                .ether_type = 0,
+                .vlan_tag = 0,
+            },
+            .mask = {
+                .dst_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+                .src_mac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+                .ether_type = 0,
+                .vlan_tag = 0,
+            }
+        },
+        .spec_ipv4 = {
+            .type = IBV_FLOW_SPEC_IPV4,
+            .size = sizeof(struct ibv_flow_spec_ipv4),
+            .val = {
+                .src_ip = 0,
+                .dst_ip = 0,
+            },
+            .mask = {
+                .src_ip = 0xffffffff,
+                .dst_ip = 0xffffffff,
+            }
+        },
+        .spec_udp = {
+            .type = IBV_FLOW_SPEC_UDP,
+            .size = sizeof(struct ibv_flow_spec_tcp_udp),
+            .val = {
+                .dst_port = 0,
+                .src_port = 0,
+            },
+            .mask = 
+            {
+                .dst_port = 0xffff,
+                .src_port = 0xffff,
+            } 
+        }
+    };
+
+    // copy the packet information to the flow_attr
+    memcpy(flow_attr.spec_eth.val.dst_mac, pkt_info->dst_mac, 6);
+    memcpy(flow_attr.spec_eth.mask.dst_mac, (uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 6);
+    memcpy(flow_attr.spec_eth.val.src_mac, pkt_info->src_mac, 6);
+    memcpy(flow_attr.spec_eth.mask.src_mac, (uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 6);
+    flow_attr.spec_eth.val.ether_type = 0x0800;
+    flow_attr.spec_eth.mask.ether_type = 0xFFFF;
+    flow_attr.spec_ipv4.val.dst_ip = *(uint32_t *)pkt_info->dst_ip;
+    flow_attr.spec_ipv4.mask.dst_ip = 0xFFFFFFFF;
+    flow_attr.spec_ipv4.val.src_ip = *(uint32_t *)pkt_info->src_ip;
+    flow_attr.spec_ipv4.mask.src_ip = 0xFFFFFFFF;
+    flow_attr.spec_udp.val.dst_port = pkt_info->dst_port;
+    flow_attr.spec_udp.mask.dst_port = 0xFFFF;
+    flow_attr.spec_udp.val.src_port = pkt_info->src_port;
+    flow_attr.spec_udp.mask.src_port = 0xFFFF;
+
+    // create flow
+    struct ibv_flow *flow = ibv_create_flow(qp, &flow_attr.attr);
+    if(!flow){
+        fprintf(stderr, "Failed to create flow.\n");
+        return -1;
+    }
+
+    return 0;
 }
 
-int ib_recv()
+int set_global_res(int device_id)
 {
-
+    // set the global device id, qp and cq
+    global_device_id = device_id;
+    global_qp = ib_global_qp[device_id];
+    global_cq = ib_global_cq[device_id];
+    for(int i = 0; i < WR_N; i++) global_wc[i].wr_id = i;
 }
 
-int destroy_ib_qps()
+int ib_send(int device_id)
 {
-
+    // TODO: implement the ib_send function
 }
 
-int close_ib_device(struct ibv_context *context)
-{
+int ib_recv(int device_id)
+{  
+    for(int i = 0; i < recv_completed; i++)
+    {
+        global_wr.wr_id = global_wc[i].wr_id;
+        global_wr.sg_list = &global_sg_entry[i];
+        global_wr.num_sge = 1;
+        global_wr.next = NULL;
+        ibv_post_recv(global_qp, &global_wr, &global_bad_wr);
+    }   
+    recv_completed = ibv_poll_cq(global_cq, POLL_N, global_wc);
+    return recv_completed;
+}
 
+int destroy_ib_res(int device_id)
+{
+    // get the ib res by device id, and then dealloc them
+    struct ibv_pd *pd = ib_global_pd[device_id];
+    ibv_dealloc_pd(pd);
+    struct ibv_cq *cq = ib_global_cq[device_id];
+    ibv_destroy_cq(cq);
+    struct ibv_mr *mr = ib_global_mr[device_id];
+    ibv_dereg_mr(mr);
+    struct ibv_qp *qp = ib_global_qp[device_id];
+    ibv_destroy_qp(qp);
+}
+
+int close_ib_device(int device_id)
+{
+    struct ibv_context *context = ib_global_context[device_id];
+    ibv_close_device(context);
 }
