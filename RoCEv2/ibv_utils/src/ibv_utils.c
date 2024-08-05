@@ -1,4 +1,6 @@
 #include <infiniband/verbs.h>
+#include <poll.h> 
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -13,7 +15,7 @@ struct ibv_cq *ib_global_cq[MAX_DEV_NUM];
 struct ibv_qp *ib_global_qp[MAX_DEV_NUM];
 struct ibv_mr *ib_global_mr[MAX_DEV_NUM];
 struct ibv_device **ib_global_devs;
-int *num_ib_devices;
+int num_ib_devices;
 int send_global_wr_num[MAX_DEV_NUM];
 int recv_global_wr_num[MAX_DEV_NUM];
 
@@ -35,12 +37,12 @@ get the ib device list
 int get_ib_devices()
 {
     //get device list
-    ib_global_devs = ibv_get_device_list(num_ib_devices);
+    ib_global_devs = ibv_get_device_list(&num_ib_devices);
     if (!ib_global_devs) {
         fprintf(stderr, "Failed to get IB devices list.\n");
         return -1;
     }
-    return *num_ib_devices;
+    return num_ib_devices;
 }
 
 /* 
@@ -193,7 +195,7 @@ int create_flow(int device_id, struct pkt_info *pkt_info)
 
     // TODO: add more flexible for the flow control
     // Register steering rule to intercept packet to DEST_MAC and place packet in ring pointed by ->qp
-    struct raw_eth_flow_attr1 {
+    struct raw_eth_flow_attr {
     struct ibv_flow_attr attr;
     struct ibv_flow_spec_eth spec_eth;
     struct ibv_flow_spec_ipv4 spec_ipv4;
@@ -258,9 +260,9 @@ int create_flow(int device_id, struct pkt_info *pkt_info)
     memcpy(flow_attr.spec_eth.mask.src_mac, (uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 6);
     flow_attr.spec_eth.val.ether_type = 0x0800;
     flow_attr.spec_eth.mask.ether_type = 0xFFFF;
-    flow_attr.spec_ipv4.val.dst_ip = *(uint32_t *)pkt_info->dst_ip;
+    flow_attr.spec_ipv4.val.dst_ip = pkt_info->dst_ip;
     flow_attr.spec_ipv4.mask.dst_ip = 0xFFFFFFFF;
-    flow_attr.spec_ipv4.val.src_ip = *(uint32_t *)pkt_info->src_ip;
+    flow_attr.spec_ipv4.val.src_ip = pkt_info->src_ip;
     flow_attr.spec_ipv4.mask.src_ip = 0xFFFFFFFF;
     flow_attr.spec_udp.val.dst_port = pkt_info->dst_port;
     flow_attr.spec_udp.mask.dst_port = 0xFFFF;

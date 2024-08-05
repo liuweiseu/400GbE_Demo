@@ -890,7 +890,7 @@ int main(int argc, char *argv[])
                     
                     wr.wr_id = wc[i].wr_id;
                     wr.sg_list = &sg_entry[wc[i].wr_id];
-                    ibv_post_recv(qp, &wr, &bad_wr);
+                    //ibv_post_recv(qp, &wr, &bad_wr);
                 }
             } 
 			//printf("total_recv: %d\n",total_recv); 

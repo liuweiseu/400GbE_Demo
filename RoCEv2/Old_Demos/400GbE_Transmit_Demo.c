@@ -11,7 +11,7 @@
 #define ELAPSED_NS(start,stop) \
     (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
 
-#define WR_N 1024
+#define WR_N 512
 
 //#define DELAY	500
 
@@ -262,6 +262,7 @@ int main(int argc, char *argv[])
     if(verbose)
         print_pkey(pkey);
 
+/***********************for QP-0*******************/
     // create protection domain
     struct ibv_pd *pd;
     pd = ibv_alloc_pd(context);
@@ -340,23 +341,13 @@ int main(int argc, char *argv[])
     int buf_size = PACKET_SIZE * WR_N;
     buf = malloc(PACKET_SIZE*WR_N);
     struct packet *pkt;
-    /*
+    
+    // send out packets with different src and dst port number
     for(int i=0; i < WR_N; i++)
     {
         pkt = (struct packet *)(buf+i*PACKET_SIZE);
-        //memcpy(pkt->dst_mac, dst_mac, 6);
-		
-		if(i%2==0)
-			memcpy(pkt->dst_mac, dst_mac, 6);
-        else
-		{
-			if(md == 0)
-				memcpy(pkt->dst_mac, dst_mac, 6);
-			else
-				memcpy(pkt->dst_mac, dst_mac1, 6);
-		}
-		
-		memcpy(pkt->src_mac, src_mac, 6);
+        memcpy(pkt->dst_mac, dst_mac, 6);
+        memcpy(pkt->src_mac, src_mac, 6);
         if(woip == 0)
         {
             memcpy(pkt->eth_type, eth_type, 2);
@@ -368,41 +359,6 @@ int main(int argc, char *argv[])
         pkt->payload[0] = 0x55;
         pkt->payload[1] = i&0xff;
         pkt->payload[2] = i >> 8;
-    }
-    */
-    // send out packets with different src and dst port number
-    for(int i=0; i < WR_N/2; i++)
-    {
-        pkt = (struct packet *)(buf+2*i*PACKET_SIZE);
-        memcpy(pkt->dst_mac, dst_mac, 6);
-        memcpy(pkt->src_mac, src_mac, 6);
-        if(woip == 0)
-        {
-            memcpy(pkt->eth_type, eth_type, 2);
-            memcpy(pkt->ip_hdrs, ip_hdrs, 12);
-            memcpy(pkt->src_ip, src_ip, 4);
-            memcpy(pkt->dst_ip, dst_ip, 4);
-            memcpy(pkt->udp_hdr, udp_hdr, 8);
-        }
-        pkt->payload[0] = 0x55;
-        pkt->payload[1] = 2*i&0xff;
-        pkt->payload[2] = 2*i >> 8;
-
-        pkt = (struct packet *)(buf+(2*i+1)*PACKET_SIZE);
-        memcpy(pkt->dst_mac, dst_mac, 6);
-        memcpy(pkt->src_mac, src_mac, 6);
-        if(woip == 0)
-        {
-            memcpy(pkt->eth_type, eth_type, 2);
-            memcpy(pkt->ip_hdrs, ip_hdrs, 12);
-            memcpy(pkt->src_ip, src_ip, 4);
-            memcpy(pkt->dst_ip, dst_ip, 4);
-            memcpy(pkt->udp_hdr, udp_hdr1, 8);
-        }
-        pkt->payload[0] = 0x55;
-        pkt->payload[1] = (2*i+1)&0xff;
-        pkt->payload[2] = (2*i+1) >> 8;
-
     }
     // register memory
     struct ibv_mr *mr;
@@ -437,8 +393,144 @@ int main(int argc, char *argv[])
         wr[i].send_flags |= IBV_SEND_SIGNALED;
     }
 
+/************for QP-1 ******************************/
+    // create protection domain
+    struct ibv_pd *pd1;
+    pd1 = ibv_alloc_pd(context);
+    //pd1 = pd;
+    if(!pd1)
+    {
+        fprintf(stderr, "Couldn't allocate PD.\n");
+        exit(1);
+    }
+
+    // create completion queue
+    struct ibv_cq *cq1;
+    cq1 = ibv_create_cq(context, WR_N, NULL, NULL, 0);
+    if(!cq1){
+        fprintf(stderr, "Couldn't create CQ.\n");
+        exit(1);
+    }
+
+    // create qp
+    struct ibv_qp *qp1;
+    struct ibv_qp_init_attr qp_init_attr1 = {
+        .qp_context = NULL,
+        .send_cq = cq1,
+        .recv_cq = cq1,
+        .cap = {
+            .max_send_wr = WR_N,
+            .max_send_sge = 1,
+            .max_recv_wr = 0
+        },
+        .qp_type = IBV_QPT_RAW_PACKET,
+    };
+    qp1 = ibv_create_qp(pd1, &qp_init_attr1);
+
+    // Initialize the QP
+    struct ibv_qp_attr qp_attr1;
+    int qp_flags1;
+    memset(&qp_attr1, 0, sizeof(qp_attr1));
+    qp_flags1 = IBV_QP_STATE | IBV_QP_PORT;
+    qp_attr1.qp_state = IBV_QPS_INIT;
+    qp_attr1.port_num = 1;
+    state = ibv_modify_qp(qp1, &qp_attr1, qp_flags1);
+    if(state < 0)
+    {
+        fprintf(stderr, "Failed to init qp.\n");
+        exit(1);
+    }
+    else
+        printf("QP-1 init successfully!\n");
+    
+    // move the ring to receiver
+    qp_flags1 = IBV_QP_STATE;
+    qp_attr1.qp_state = IBV_QPS_RTR;
+    state = ibv_modify_qp(qp1, &qp_attr1, qp_flags1);
+    if(state < 0)
+    {
+        fprintf(stderr, "Failed to modify qp to RTR.\n");
+        exit(1);
+    }
+    else
+        printf("QP-1 is ready to receiver data!\n");
+
+    // move the ring to send
+    memset(&qp_attr1, 0, sizeof(qp_attr1));
+    qp_flags1 = IBV_QP_STATE;
+    qp_attr1.qp_state = IBV_QPS_RTS;
+    state = ibv_modify_qp(qp1, &qp_attr1, qp_flags1);
+    if(state < 0)
+    {
+        fprintf(stderr, "Failed to modify qp to RTS.\n");
+        exit(1);
+    }
+    else
+        printf("QP-1 is ready to send data!\n");
+
+    // Allocate Memory
+    void *buf1;
+    int buf_size1 = PACKET_SIZE * WR_N;
+    buf1 = malloc(PACKET_SIZE*WR_N);
+    struct packet *pkt1;
+    
+    // send out packets with different src and dst port number
+    for(int i=0; i < WR_N; i++)
+    {
+        pkt1 = (struct packet *)(buf1+i*PACKET_SIZE);
+        memcpy(pkt1->dst_mac, dst_mac, 6);
+        memcpy(pkt1->src_mac, src_mac, 6);
+        if(woip == 0)
+        {
+            memcpy(pkt1->eth_type, eth_type, 2);
+            memcpy(pkt1->ip_hdrs, ip_hdrs, 12);
+            memcpy(pkt1->src_ip, src_ip, 4);
+            memcpy(pkt1->dst_ip, dst_ip, 4);
+            memcpy(pkt1->udp_hdr, udp_hdr1, 8);
+        }
+        pkt1->payload[0] = 0x55;
+        pkt1->payload[1] = i&0xff;
+        pkt1->payload[2] = i >> 8;
+    }
+
+    // register memory
+    struct ibv_mr *mr1;
+    mr1 = ibv_reg_mr(pd1, buf1, buf_size1, IBV_ACCESS_LOCAL_WRITE);
+    if(!mr1){
+        fprintf(stderr, "Failed to register mr.\n");
+        exit(1);
+    }
+    else
+        printf("Register mr-1 successfully!\n");
+    
+    // create sge
+    struct ibv_sge sg_entry1[WR_N];
+    for(int i=0; i< WR_N; i++)
+    {
+        sg_entry1[i].addr = (uint64_t)(buf1+i*PACKET_SIZE);
+        sg_entry1[i].length = PACKET_SIZE;
+        sg_entry1[i].lkey = mr1->lkey;
+    }
+    
+
+    // create wr
+    struct ibv_send_wr wr1[WR_N], *bad_wr1;
+    for(int i=0; i< WR_N; i++)
+    {
+        memset(&wr1[i], 0, sizeof(wr1[i]));
+        wr1[i].num_sge = 1;
+        wr1[i].sg_list= &sg_entry1[i];
+        wr1[i].next = NULL;
+        wr1[i].opcode = IBV_WR_SEND;
+        wr1[i].wr_id = i;
+        wr1[i].send_flags |= IBV_SEND_SIGNALED;
+    }
+
+
+/***************************************************/
     int msc;
     struct ibv_wc wc[WR_N];
+    struct ibv_wc wc1[WR_N];
     // ready to send
     int i, j;
     int ns = 0;
@@ -447,13 +539,15 @@ int main(int argc, char *argv[])
     {
 		while(1)
 		{
+            
 			for(i = 0; i < WR_N; i++)
 			{
 				state = ibv_post_send(qp, &wr[i], &bad_wr);	
 				if (state < 0) {
-					fprintf(stderr, "failed in post send\n");
+					fprintf(stderr, "failed in post send-0\n");
 					exit(1);
 				}
+                
 			}
 			ns = 0;
 			while(ns < WR_N)
@@ -461,6 +555,7 @@ int main(int argc, char *argv[])
 				msc = ibv_poll_cq(cq, WR_N, wc);
 				ns += msc;
 			}
+        
 				
 		}
 
@@ -499,6 +594,7 @@ int main(int argc, char *argv[])
                         fprintf(stderr, "failed in post send\n");
                         exit(1);
                     }
+
                 } 
                 // we need to wait until all the wr are completed.
 				while(ns < WR_N)
@@ -507,6 +603,24 @@ int main(int argc, char *argv[])
                     ns += msc;
                 }
                 ns = 0;
+                
+                for(i = 0; i < WR_N; i++)
+                {
+                    state = ibv_post_send(qp1, &wr1[i], &bad_wr1);
+					//for(int k=0; k<DELAY; k++);
+                    if (state < 0) {
+                        fprintf(stderr, "failed in post send\n");
+                        exit(1);
+                    }
+                } 
+                // we need to wait until all the wr are completed.
+				while(ns < WR_N)
+                {
+                    msc = ibv_poll_cq(cq1, WR_N, wc1);
+                    ns += msc;
+                }
+                ns = 0;
+                
 				// add some delay
 				clock_gettime(CLOCK_MONOTONIC_RAW, &ts_burst_end);
 				ns_elapsed = ELAPSED_NS(ts_burst_start, ts_burst_end);
@@ -523,7 +637,7 @@ int main(int argc, char *argv[])
 			clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now);
 			clk_cycles = get_cycles() - clk_cycles;
 			ns_elapsed = ELAPSED_NS(ts_start, ts_now); 
-			gbps = 	8.0 * PACKET_SIZE * N_wr * WR_N / ns_elapsed ;
+			gbps = 	8.0 * PACKET_SIZE * N_wr * WR_N / ns_elapsed * 2;
 			printf("ns_elapsed: %ld\n", ns_elapsed);
 			printf("clk_cycles: %lld\n", clk_cycles);
 			printf("bandwidth: %.2f Gbps\n", gbps);
@@ -549,12 +663,16 @@ int main(int argc, char *argv[])
     
     // dealloc pd
     ibv_dealloc_pd(pd);
+    ibv_dealloc_pd(pd1);
     // destory cq
     ibv_destroy_cq(cq);
+    ibv_destroy_cq(cq1);
     // dereg mr
     ibv_dereg_mr(mr);
+    ibv_dereg_mr(mr1);
     // destory qp
     ibv_destroy_qp(qp);
+    ibv_destroy_qp(qp1);
     // close the device
     state = ibv_close_device(context);
     printf("Dev close.\n");
