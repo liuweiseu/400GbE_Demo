@@ -61,9 +61,9 @@ int get_ib_devices()
 {
     //get device list
     ib_global_devs = ibv_get_device_list(&num_ib_devices);
-    ibv_utils_info("Getting IB devices list.");
+    ibv_utils_warn("Getting IB devices list.");
     if (!ib_global_devs) {
-        ibv_utils_warn("Failed to get IB devices list.\n");
+        ibv_utils_error("Failed to get IB devices list.\n");
         return -1;
     }
     return num_ib_devices;
@@ -80,7 +80,7 @@ int open_ib_device(int device_id)
     ib_global_context[device_id] = ibv_open_device(ib_dev);
     // check if the device is opened successfully
     if(!ib_global_context[device_id]) {
-        ibv_utils_warn("Failed to open IB device.\n");
+        ibv_utils_error("Failed to open IB device.\n");
         return -1;
     }
     else
@@ -102,7 +102,7 @@ create ib resources and so on, including pd, cq, qp
 // for receiving purpose, recv_wr_num is the number of receive work requests
 int create_ib_res(int device_id, int send_wr_num, int recv_wr_num)
 {
-    ibv_utils_info("Creating IB resources.");
+    ibv_utils_warn("Creating IB resources.");
     // save the wr number to global variable
     send_global_wr_num[device_id] = send_wr_num;
     recv_global_wr_num[device_id] = recv_wr_num;
@@ -110,13 +110,13 @@ int create_ib_res(int device_id, int send_wr_num, int recv_wr_num)
     // create pd
     ib_global_pd[device_id] = ibv_alloc_pd(ib_global_context[device_id]);
     if (!ib_global_pd[device_id]) {
-        ibv_utils_warn("Failed to allocate PD.\n");
+        ibv_utils_error("Failed to allocate PD.\n");
         return -1;
     }
     // create cq
     ib_global_cq[device_id] = ibv_create_cq(ib_global_context[device_id], wr_num, NULL, NULL, 0);
     if(!ib_global_cq[device_id]){
-        ibv_utils_warn("Couldn't create CQ.\n");
+        ibv_utils_error("Couldn't create CQ.\n");
         return -2;
     }
     // create qp
@@ -135,7 +135,7 @@ int create_ib_res(int device_id, int send_wr_num, int recv_wr_num)
     };
     ib_global_qp[device_id] = ibv_create_qp(ib_global_pd[device_id], &qp_init_attr);
     if(!ib_global_qp[device_id]){
-        ibv_utils_warn("Couldn't create QP.\n");
+        ibv_utils_error("Couldn't create QP.\n");
         return -3;
     }
     return 0;
@@ -146,7 +146,7 @@ modify qp status from INIT to RTR, then RTS
 */
 int init_ib_res(int device_id)
 {
-    ibv_utils_info("Initializing IB resources.");
+    ibv_utils_warn("Initializing IB resources.");
     // get the qp by device id
     struct ibv_qp *qp = ib_global_qp[device_id];
 
@@ -162,7 +162,7 @@ int init_ib_res(int device_id)
     state = ibv_modify_qp(qp, &qp_attr, qp_flags);
     if(state < 0)
     {
-        ibv_utils_warn("Failed to init qp.\n");
+        ibv_utils_error("Failed to init qp.\n");
         return -1;
     }
     // Move the QP to RTR
@@ -172,7 +172,7 @@ int init_ib_res(int device_id)
     state = ibv_modify_qp(qp, &qp_attr, qp_flags);
     if(state < 0)
     {
-        ibv_utils_warn("Failed to modify qp to RTR.\n");
+        ibv_utils_error("Failed to modify qp to RTR.\n");
         return -2;
     }
     // move the QP to RTS
@@ -182,7 +182,7 @@ int init_ib_res(int device_id)
     state = ibv_modify_qp(qp, &qp_attr, qp_flags);
     if(state < 0)
     {
-        ibv_utils_warn("Failed to modify qp to RTS.\n");
+        ibv_utils_error("Failed to modify qp to RTS.\n");
         return -3;
     }
     // if the initialization is successful, return 0
@@ -191,7 +191,7 @@ int init_ib_res(int device_id)
 
 int register_memory(int device_id, void *addr, size_t total_length, size_t chunck_size)
 {
-    ibv_utils_info("Registering memory.");
+    ibv_utils_warn("Registering memory.");
     // get the qp by device id
     struct ibv_pd *pd = ib_global_pd[device_id];
 
@@ -200,7 +200,7 @@ int register_memory(int device_id, void *addr, size_t total_length, size_t chunc
     struct ibv_mr *mr = ib_global_mr[device_id];
     mr = ibv_reg_mr(pd, addr, total_length, IBV_ACCESS_LOCAL_WRITE);
     if(!mr){
-        ibv_utils_warn("Failed to register memory.\n");
+        ibv_utils_error("Failed to register memory.\n");
         return -1;
     }
     // create sge
@@ -219,7 +219,7 @@ create flow for packet filtering
 */
 int create_flow(int device_id, struct pkt_info *pkt_info)
 {
-    ibv_utils_info("Creating flow.");
+    ibv_utils_warn("Creating flow.");
     // get the qp by device id
     struct ibv_qp *qp = ib_global_qp[device_id];
 
@@ -296,7 +296,7 @@ int create_flow(int device_id, struct pkt_info *pkt_info)
     struct ibv_flow *flow;
     flow = ibv_create_flow(qp, &flow_attr.attr);
     if(!flow){
-        ibv_utils_warn("Couldn't attach steering flow.\n");
+        ibv_utils_error("Couldn't attach steering flow.\n");
         return -1;
     }
 
@@ -305,7 +305,7 @@ int create_flow(int device_id, struct pkt_info *pkt_info)
 
 int set_global_res(int device_id)
 {
-    ibv_utils_info("Setting global resources.");
+    ibv_utils_warn("Setting global resources.");
     // set the global device id, qp and cq
     global_device_id = device_id;
     global_qp = ib_global_qp[device_id];

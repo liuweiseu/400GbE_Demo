@@ -6,7 +6,7 @@ project(Demos)
 find_package(CUDA REQUIRED)
 
 # set the executable name
-set(EXECUTABLE_NAME RDemo)
+set(EXECUTABLE_NAME RecvDemo)
 
 # set compiler
 set(CMAKE_C_COMPILER "nvcc")
