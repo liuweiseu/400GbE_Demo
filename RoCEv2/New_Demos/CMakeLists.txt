@@ -21,8 +21,9 @@ include_directories(${IBV_UTILS_PATH}/include ${PKT_GEN_PATH})
 #link_directories(${IBV_UTILS_PATH}/lib)
 link_directories(/usr/local/lib)
 link_libraries(ibv_utils.so)
+link_libraries(cuda)
 # add compile options
-add_compile_options(-lcuda -arch=sm_86)
+add_compile_options(-arch=sm_86)
 
 # add executable
 cuda_add_executable(${EXECUTABLE_NAME} ${SRC})
