@@ -54,12 +54,20 @@ void main() {
         printf("Failed to create ib resources.\n");
         return;
     }
+    else
+    {
+        printf("Create IB resources successfully.\n");
+    }
 
     // init ib resources
     ret = init_ib_res(device_id);
     if (ret < 0) {
         printf("Failed to init ib resources.\n");
         return;
+    }
+    else
+    {
+        printf("Init IB resources successfully.\n");
     }
 
     // register memory
@@ -68,6 +76,10 @@ void main() {
     if (ret < 0) {
         printf("Failed to register memory.\n");
         return;
+    }
+    else
+    {
+        printf("Register memory successfully.\n");
     }
 
     // create flow
@@ -78,14 +90,20 @@ void main() {
     pkt_info.dst_ip = DST_IP;
     pkt_info.src_port = SRC_PORT;
     pkt_info.dst_port = DST_PORT;
-    create_flow(device_id, &pkt_info);
-
+    ret = create_flow(device_id, &pkt_info);
+    if (ret < 0) {
+        printf("Failed to create flow.\n");
+        return;
+    }
+    else
+    {
+        printf("Create flow successfully.\n");
+    }
     // set global resources
     set_global_res(device_id);
 
     // recv
     while (1) {
-
         clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now);
 		ns_elapsed = ELAPSED_NS(ts_start, ts_now);
 		if(ns_elapsed > UPDATE_MS * 1000 * 1000)
@@ -105,4 +123,7 @@ void main() {
         }
         total_recv += msgs_completed;
     }
+    free(buf);
+    destroy_ib_res(device_id);
+    close_ib_device(device_id);
 }

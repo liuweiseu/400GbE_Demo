@@ -81,6 +81,7 @@ int create_ib_res(int device_id, int send_wr_num, int recv_wr_num)
     // save the wr number to global variable
     send_global_wr_num[device_id] = send_wr_num;
     recv_global_wr_num[device_id] = recv_wr_num;
+    int wr_num = send_wr_num > recv_wr_num ? send_wr_num : recv_wr_num;
     // create pd
     ib_global_pd[device_id] = ibv_alloc_pd(ib_global_context[device_id]);
     if (!ib_global_pd[device_id]) {
@@ -88,12 +89,13 @@ int create_ib_res(int device_id, int send_wr_num, int recv_wr_num)
         return -1;
     }
     // create cq
-    ib_global_cq[device_id] = ibv_create_cq(ib_global_context[device_id], send_wr_num, NULL, NULL, 0);
+    ib_global_cq[device_id] = ibv_create_cq(ib_global_context[device_id], wr_num, NULL, NULL, 0);
     if(!ib_global_cq[device_id]){
         fprintf(stderr, "Couldn't create CQ.\n");
         return -2;
     }
-    // create 
+    // create qp
+    // TODO: add options for qp type
     struct ibv_cq *cq = ib_global_cq[device_id];
     struct ibv_qp_init_attr qp_init_attr = {
         .qp_context = NULL,
@@ -214,8 +216,8 @@ int create_flow(int device_id, struct pkt_info *pkt_info)
             .type = IBV_FLOW_SPEC_ETH,
             .size = sizeof(struct ibv_flow_spec_eth),
             .val = {
-                .dst_mac = 0,
-                .src_mac = 0,
+                .dst_mac = {0,0,0,0,0,0},
+                .src_mac = {0,0,0,0,0,0},
                 .ether_type = 0,
                 .vlan_tag = 0,
             },
@@ -255,24 +257,18 @@ int create_flow(int device_id, struct pkt_info *pkt_info)
 
     // copy the packet information to the flow_attr
     memcpy(flow_attr.spec_eth.val.dst_mac, pkt_info->dst_mac, 6);
-    memcpy(flow_attr.spec_eth.mask.dst_mac, (uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 6);
     memcpy(flow_attr.spec_eth.val.src_mac, pkt_info->src_mac, 6);
-    memcpy(flow_attr.spec_eth.mask.src_mac, (uint8_t[]){0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 6);
-    flow_attr.spec_eth.val.ether_type = 0x0800;
-    flow_attr.spec_eth.mask.ether_type = 0xFFFF;
+    //flow_attr.spec_eth.val.ether_type = 0x0800;
     flow_attr.spec_ipv4.val.dst_ip = pkt_info->dst_ip;
-    flow_attr.spec_ipv4.mask.dst_ip = 0xFFFFFFFF;
     flow_attr.spec_ipv4.val.src_ip = pkt_info->src_ip;
-    flow_attr.spec_ipv4.mask.src_ip = 0xFFFFFFFF;
     flow_attr.spec_udp.val.dst_port = pkt_info->dst_port;
-    flow_attr.spec_udp.mask.dst_port = 0xFFFF;
     flow_attr.spec_udp.val.src_port = pkt_info->src_port;
-    flow_attr.spec_udp.mask.src_port = 0xFFFF;
 
     // create flow
-    struct ibv_flow *flow = ibv_create_flow(qp, &flow_attr.attr);
+    struct ibv_flow *flow;
+    flow = ibv_create_flow(qp, &flow_attr.attr);
     if(!flow){
-        fprintf(stderr, "Failed to create flow.\n");
+        fprintf(stderr, "Couldn't attach steering flow.\n");
         return -1;
     }
 
