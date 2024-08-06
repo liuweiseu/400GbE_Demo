@@ -18,10 +18,14 @@ aux_source_directory(. SRC)
 # include ibv_utils header files
 include_directories(${IBV_UTILS_PATH}/include ${PKT_GEN_PATH})
 # link ibv_utils library
-link_directories(${IBV_UTILS_PATH}/lib)
+#link_directories(${IBV_UTILS_PATH}/lib)
+link_directories(/usr/local/lib)
 link_libraries(ibv_utils.so)
 # add compile options
 add_compile_options(-lcuda -arch=sm_86)
 
 # add executable
 cuda_add_executable(${EXECUTABLE_NAME} ${SRC})
+
+# install executable
+install(TARGETS ${EXECUTABLE_NAME} DESTINATION /usr/local/bin)

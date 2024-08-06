@@ -16,6 +16,9 @@ struct pkt_info {
 };
 
 // APIs
+void ibv_utils_info(const char *msg);
+void ibv_utils_error(const char *msg);
+void ibv_utils_warn(const char *msg);
 int get_ib_devices();
 int open_ib_device(int device_id);
 int open_ib_device_by_name(const char *device_name);

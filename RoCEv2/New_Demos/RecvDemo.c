@@ -120,6 +120,7 @@ void parse_args(struct args *args, int argc, char *argv[])
                 sscanf(optarg, "%hd", &args->pkt_info.dst_port);
                 break;
             case 'g':
+                args->gpu = 1;
                 break;
             case 'h':
                 print_helper();
@@ -138,7 +139,8 @@ void parse_args(struct args *args, int argc, char *argv[])
 Print out device information.
 */
 void print_dev_info(struct args *args){
-    printf("Device information:\n");
+    printf("**********************************************\n");
+    printf("Recv Config Information:\n");
     printf("    device_id: %d\n", args->device_id);
     printf("    src_mac: %02x:%02x:%02x:%02x:%02x:%02x\n", 
                 args->pkt_info.src_mac[0], 
@@ -167,25 +169,24 @@ void print_dev_info(struct args *args){
     printf("    dst_ip: %d.%d.%d.%d\n", tmp[0], tmp[1], tmp[2], tmp[3]);
     printf("    src_port: %d\n", args->pkt_info.src_port);
     printf("    dst_port: %d\n", args->pkt_info.dst_port);
+    printf("**********************************************\n");
 }
 
 void main(int argc, char *argv[]){
 
     int num_dev = 0;
     struct args args;
-    args.device_id = 0;
-    args.gpu = 0;
+    memset(&args, 0, sizeof(struct args));
     parse_args(&args, argc, argv);
     print_dev_info(&args);
 
-    return;
     printf("Start to recv.\n");
     // get ib device list
     num_dev = get_ib_devices();
     printf("The number of ib devices is %d.\n", num_dev);
     // open ib device by id
     int ret = 0;
-    ret = open_ib_device(device_id);
+    ret = open_ib_device(args.device_id);
     if (ret < 0) {
         printf("Failed to open IB device.\n");
         return;
@@ -193,7 +194,7 @@ void main(int argc, char *argv[]){
     printf("Open IB device successfully.\n");
 
     // only implement recv here
-    ret = create_ib_res(device_id, 0, 512);
+    ret = create_ib_res(args.device_id, 0, 512);
     if (ret < 0) {
         printf("Failed to create ib resources.\n");
         return;
@@ -204,7 +205,7 @@ void main(int argc, char *argv[]){
     }
 
     // init ib resources
-    ret = init_ib_res(device_id);
+    ret = init_ib_res(args.device_id);
     if (ret < 0) {
         printf("Failed to init ib resources.\n");
         return;
@@ -216,7 +217,7 @@ void main(int argc, char *argv[]){
 
     // register memory
     uint8_t *buf = (uint8_t *)malloc(PKT_LEN * 512);
-    ret = register_memory(device_id, buf, PKT_LEN * 512, PKT_LEN);
+    ret = register_memory(args.device_id, buf, PKT_LEN * 512, PKT_LEN);
     if (ret < 0) {
         printf("Failed to register memory.\n");
         return;
@@ -227,14 +228,7 @@ void main(int argc, char *argv[]){
     }
 
     // create flow
-    struct pkt_info pkt_info;
-    memcpy(pkt_info.src_mac, src_mac, 6);
-    memcpy(pkt_info.dst_mac, dst_mac, 6);
-    pkt_info.src_ip = SRC_IP;
-    pkt_info.dst_ip = DST_IP;
-    pkt_info.src_port = SRC_PORT;
-    pkt_info.dst_port = DST_PORT;
-    ret = create_flow(device_id, &pkt_info);
+    ret = create_flow(args.device_id, &args.pkt_info);
     if (ret < 0) {
         printf("Failed to create flow.\n");
         return;
@@ -244,7 +238,7 @@ void main(int argc, char *argv[]){
         printf("Create flow successfully.\n");
     }
     // set global resources
-    set_global_res(device_id);
+    set_global_res(args.device_id);
 
     // recv
     while (1) {
@@ -259,7 +253,7 @@ void main(int argc, char *argv[]){
 				printf("total_recv: %d\n",total_recv);
 			}
 		}
-        msgs_completed = ib_recv(device_id);
+        msgs_completed = ib_recv(args.device_id);
         if (msgs_completed < 0) {
             printf("Failed to recv.\n");
             return;
@@ -267,6 +261,6 @@ void main(int argc, char *argv[]){
         total_recv += msgs_completed;
     }
     free(buf);
-    destroy_ib_res(device_id);
-    close_ib_device(device_id);
+    destroy_ib_res(args.device_id);
+    close_ib_device(args.device_id);
 }
