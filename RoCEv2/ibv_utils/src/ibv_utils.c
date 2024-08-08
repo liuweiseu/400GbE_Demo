@@ -30,7 +30,7 @@ struct ibv_sge global_sg_entry[WR_N];
 struct ibv_recv_wr global_wr, *global_bad_wr;
 
 int send_completed = WR_N;
-//int recv_completed = WR_N;
+int recv_completed = WR_N;
 
 /*
 Print information message
@@ -115,16 +115,18 @@ int create_ib_res(struct ibv_utils_res *ib_res, int send_wr_num, int recv_wr_num
     }
     // create cq
     ibv_utils_warn("Creating cq.");
-    ib_res->recv_cc = ibv_create_comp_channel(ib_res->context);
+    //ib_res->recv_cc = ibv_create_comp_channel(ib_res->context);
     ib_res->cq = ibv_create_cq(ib_res->context, wr_num, NULL, NULL, 0);
     if(!ib_res->cq){
         ibv_utils_error("Couldn't create CQ.\n");
         return -2;
     }
+    /*
     if(ibv_req_notify_cq(ib_res->cq, 0)) {
         ibv_utils_error("ibv_req_notify_cq");
         return -3;
     } 
+    */
     // create qp
     // TODO: add options for qp type
     struct ibv_qp_init_attr qp_init_attr = {
@@ -206,7 +208,7 @@ int register_memory(struct ibv_utils_res *ib_res, void *addr, size_t total_lengt
     // TODO: the number of sge should be set according to the user's requirement
     int wr_num = total_length / chunck_size;
     ib_res->sge = (struct ibv_sge *)malloc(wr_num * sizeof(struct ibv_sge));
-    ib_res->send_wr = (struct ibv_send_wr *)malloc(wr_num * sizeof(struct ibv_send_wr));
+    ib_res->send_wr = (struct ibv_send_wr *)malloc(1 * sizeof(struct ibv_send_wr));
     ib_res->recv_wr = (struct ibv_recv_wr *)malloc(1 * sizeof(struct ibv_recv_wr));
     ib_res->wc = (struct ibv_wc *)malloc(wr_num * sizeof(struct ibv_wc));
     for(int i=0; i< wr_num; i++)
@@ -217,15 +219,7 @@ int register_memory(struct ibv_utils_res *ib_res, void *addr, size_t total_lengt
     }
     for(int i = 0; i < wr_num; i++)
     {
-        memset(ib_res->recv_wr, 0, sizeof(struct ibv_recv_wr));
-        ib_res->recv_wr->num_sge = 1;
-        /* each descriptor points to max MTU size buffer */
-        ib_res->sge[i].addr = (uint64_t)addr + chunck_size*i;
-        ib_res->recv_wr->sg_list= &ib_res->sge[i];
-        ib_res->recv_wr->next = NULL;
-        ib_res->recv_wr->wr_id = i;
-        /* post receive buffer to ring */
-        ibv_post_recv(ib_res->qp, ib_res->recv_wr, &ib_res->bad_recv_wr);
+        ib_res->wc[i].wr_id = i;
     }
     return 0;
 }
@@ -236,9 +230,7 @@ create flow for packet filtering
 int create_flow(struct ibv_utils_res *ib_res, struct pkt_info *pkt_info)
 {
     ibv_utils_warn("Creating flow.");
-    // get the qp by device id
     struct ibv_qp *qp = ib_res->qp;
-
     // TODO: add more flexible for the flow control
     // Register steering rule to intercept packet to DEST_MAC and place packet in ring pointed by ->qp
     struct raw_eth_flow_attr {
@@ -326,18 +318,18 @@ int ib_send(struct ibv_utils_res *ibv_res)
 
 int ib_recv(struct ibv_utils_res *ibv_res)
 {  
-    int recv_completed = 0;
-    recv_completed = ibv_poll_cq(ibv_res->cq, 16, ibv_res->wc);
     if(recv_completed > 0)
     {
         for(int i = 0; i < recv_completed; i++)
         {
             ibv_res->recv_wr->wr_id = ibv_res->wc[i].wr_id;
             ibv_res->recv_wr->sg_list = &ibv_res->sge[ibv_res->wc[i].wr_id];
+            ibv_res->recv_wr->num_sge = 1;
+            ibv_res->recv_wr->next = NULL;
             ibv_post_recv(ibv_res->qp, ibv_res->recv_wr, &ibv_res->bad_recv_wr);
         }   
     }
-    //recv_completed = ibv_poll_cq(global_cq, POLL_N, global_wc);
+    recv_completed = ibv_poll_cq(ibv_res->cq, POLL_N, ibv_res->wc);
     
     return recv_completed;
 }

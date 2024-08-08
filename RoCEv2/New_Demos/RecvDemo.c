@@ -43,6 +43,7 @@ struct args {
     struct pkt_info pkt_info;
     uint8_t use_gpu;
     uint8_t gpu_id;
+    uint8_t disable_recv;
 };
 
 /*
@@ -79,6 +80,7 @@ void parse_args(struct args *args, int argc, char *argv[])
         {.name = "dip", .has_arg = required_argument, .flag = NULL, .val = 259},
         {.name = "sport", .has_arg = required_argument, .flag = NULL, .val = 260},
         {.name = "dport", .has_arg = required_argument, .flag = NULL, .val = 261},
+        {.name = "disable-recv", .has_arg = no_argument, .flag = NULL, .val = 262},
         {.name = "gpu", .has_arg = required_argument, .flag = NULL, .val = 'g'},
         {.name = "help", .has_arg = no_argument, .flag = NULL, .val = 'h'},
         {0, 0, 0, 0}
@@ -123,6 +125,9 @@ void parse_args(struct args *args, int argc, char *argv[])
                 break;
             case 261:
                 sscanf(optarg, "%hd", &args->pkt_info.dst_port);
+                break;
+            case 262:
+                args->disable_recv = 1;
                 break;
             case 'g':
                 args->use_gpu = 1;
@@ -177,6 +182,7 @@ void print_dev_info(struct args *args){
     printf("    dst_port: %d\n", args->pkt_info.dst_port);
     if(args->use_gpu)
         printf("    use_gpu: %d, gpu_id: %d\n", args->use_gpu, args->gpu_id);
+    printf("    disable_recv: %d\n", args->disable_recv);
     printf("**********************************************\n");
 }
 
@@ -276,8 +282,6 @@ int main(int argc, char *argv[]){
     {
         printf("Create flow successfully.\n");
     }
-    // set global resources
-    //set_global_res(args.device_id);
 
     // recv
     while (1) {
@@ -292,11 +296,12 @@ int main(int argc, char *argv[]){
 				printf("total_recv: %d\n",total_recv);
 			}
 		}
-        msgs_completed = ib_recv(&ibv_res);
+        if(args.disable_recv == 0)msgs_completed = ib_recv(&ibv_res);
         if (msgs_completed < 0) {
             printf("Failed to recv.\n");
             return -6;
         }
+        total_recv += msgs_completed;
     }
     if(args.use_gpu)
         cudaFree(buf);
