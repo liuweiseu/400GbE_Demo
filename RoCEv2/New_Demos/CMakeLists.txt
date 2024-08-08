@@ -15,13 +15,15 @@ set(IBV_UTILS_PATH ../ibv_utils)
 set(PKT_GEN_PATH ../pkt_gen)
 # set source files
 aux_source_directory(. SRC)
+aux_source_directory(${IBV_UTILS_PATH}/src IBV_SRC)
 # include ibv_utils header files
 include_directories(${IBV_UTILS_PATH}/include ${PKT_GEN_PATH})
 # link ibv_utils library
 #link_directories(${IBV_UTILS_PATH}/lib)
 link_directories(/usr/local/lib)
-link_libraries(ibv_utils.so)
+link_libraries(ibv_utils)
 link_libraries(cuda)
+link_libraries(ibverbs)
 # add compile options
 add_compile_options(-arch=sm_86)
 

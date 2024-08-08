@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "ibv_utils.h"
 
@@ -29,7 +30,7 @@ struct ibv_sge global_sg_entry[WR_N];
 struct ibv_recv_wr global_wr, *global_bad_wr;
 
 int send_completed = WR_N;
-int recv_completed = WR_N;
+//int recv_completed = WR_N;
 
 /*
 Print information message
@@ -72,14 +73,14 @@ int get_ib_devices()
 /* 
 open ib device by id
 */
-int open_ib_device(int device_id)
+int open_ib_device(uint8_t device_id, struct ibv_utils_res *ib_res)
 {
     //open ib device by id
-    struct ibv_device *ib_dev;
-    ib_dev = ib_global_devs[device_id];
-    ib_global_context[device_id] = ibv_open_device(ib_dev);
+    ib_res->dev = ib_global_devs[device_id];
+    struct ibv_context *context = ib_res->context;
+    ib_res->context = ibv_open_device(ib_res->dev);
     // check if the device is opened successfully
-    if(!ib_global_context[device_id]) {
+    if(!ib_res->context) {
         ibv_utils_error("Failed to open IB device.\n");
         return -1;
     }
@@ -100,32 +101,36 @@ create ib resources and so on, including pd, cq, qp
 */
 // for sending purpose, send_wr_num is the number of send work requests
 // for receiving purpose, recv_wr_num is the number of receive work requests
-int create_ib_res(int device_id, int send_wr_num, int recv_wr_num)
+int create_ib_res(struct ibv_utils_res *ib_res, int send_wr_num, int recv_wr_num)
 {
     ibv_utils_warn("Creating IB resources.");
     // save the wr number to global variable
-    send_global_wr_num[device_id] = send_wr_num;
-    recv_global_wr_num[device_id] = recv_wr_num;
     int wr_num = send_wr_num > recv_wr_num ? send_wr_num : recv_wr_num;
     // create pd
-    ib_global_pd[device_id] = ibv_alloc_pd(ib_global_context[device_id]);
-    if (!ib_global_pd[device_id]) {
+    ibv_utils_warn("Creating pd.");
+    ib_res->pd = ibv_alloc_pd(ib_res->context);
+    if (!ib_res->pd) {
         ibv_utils_error("Failed to allocate PD.\n");
         return -1;
     }
     // create cq
-    ib_global_cq[device_id] = ibv_create_cq(ib_global_context[device_id], wr_num, NULL, NULL, 0);
-    if(!ib_global_cq[device_id]){
+    ibv_utils_warn("Creating cq.");
+    ib_res->recv_cc = ibv_create_comp_channel(ib_res->context);
+    ib_res->cq = ibv_create_cq(ib_res->context, wr_num, NULL, NULL, 0);
+    if(!ib_res->cq){
         ibv_utils_error("Couldn't create CQ.\n");
         return -2;
     }
+    if(ibv_req_notify_cq(ib_res->cq, 0)) {
+        ibv_utils_error("ibv_req_notify_cq");
+        return -3;
+    } 
     // create qp
     // TODO: add options for qp type
-    struct ibv_cq *cq = ib_global_cq[device_id];
     struct ibv_qp_init_attr qp_init_attr = {
         .qp_context = NULL,
-        .send_cq = cq,
-        .recv_cq = cq,
+        .send_cq = ib_res->cq,
+        .recv_cq = ib_res->cq,
         .cap = {
             .max_send_wr = send_wr_num,
             .max_recv_sge = 1,
@@ -133,10 +138,11 @@ int create_ib_res(int device_id, int send_wr_num, int recv_wr_num)
         },
         .qp_type = IBV_QPT_RAW_PACKET,
     };
-    ib_global_qp[device_id] = ibv_create_qp(ib_global_pd[device_id], &qp_init_attr);
-    if(!ib_global_qp[device_id]){
+    ibv_utils_warn("Creating qp.");
+    ib_res->qp = ibv_create_qp(ib_res->pd, &qp_init_attr);
+    if(!ib_res->qp){
         ibv_utils_error("Couldn't create QP.\n");
-        return -3;
+        return -4;
     }
     return 0;
 }
@@ -144,12 +150,9 @@ int create_ib_res(int device_id, int send_wr_num, int recv_wr_num)
 /*
 modify qp status from INIT to RTR, then RTS
 */
-int init_ib_res(int device_id)
+int init_ib_res(struct ibv_utils_res *ib_res)
 {
     ibv_utils_warn("Initializing IB resources.");
-    // get the qp by device id
-    struct ibv_qp *qp = ib_global_qp[device_id];
-
     int state;
     // Initialize the QP
     struct ibv_qp_attr qp_attr;
@@ -159,7 +162,7 @@ int init_ib_res(int device_id)
     qp_attr.qp_state = IBV_QPS_INIT;
     // TODO: port number should be set according to the actual port number
     qp_attr.port_num = 1;
-    state = ibv_modify_qp(qp, &qp_attr, qp_flags);
+    state = ibv_modify_qp(ib_res->qp, &qp_attr, qp_flags);
     if(state < 0)
     {
         ibv_utils_error("Failed to init qp.\n");
@@ -169,7 +172,7 @@ int init_ib_res(int device_id)
     memset(&qp_attr, 0, sizeof(qp_attr));
     qp_flags = IBV_QP_STATE;
     qp_attr.qp_state = IBV_QPS_RTR;
-    state = ibv_modify_qp(qp, &qp_attr, qp_flags);
+    state = ibv_modify_qp(ib_res->qp, &qp_attr, qp_flags);
     if(state < 0)
     {
         ibv_utils_error("Failed to modify qp to RTR.\n");
@@ -179,7 +182,7 @@ int init_ib_res(int device_id)
     memset(&qp_attr, 0, sizeof(qp_attr));
     qp_flags = IBV_QP_STATE;
     qp_attr.qp_state = IBV_QPS_RTS;
-    state = ibv_modify_qp(qp, &qp_attr, qp_flags);
+    state = ibv_modify_qp(ib_res->qp, &qp_attr, qp_flags);
     if(state < 0)
     {
         ibv_utils_error("Failed to modify qp to RTS.\n");
@@ -189,27 +192,40 @@ int init_ib_res(int device_id)
     return 0;
 }
 
-int register_memory(int device_id, void *addr, size_t total_length, size_t chunck_size)
+int register_memory(struct ibv_utils_res *ib_res, void *addr, size_t total_length, size_t chunck_size)
 {
     ibv_utils_warn("Registering memory.");
-    // get the qp by device id
-    struct ibv_pd *pd = ib_global_pd[device_id];
-
     // register memory
     // TODO: add more access control
-    struct ibv_mr *mr = ib_global_mr[device_id];
-    mr = ibv_reg_mr(pd, addr, total_length, IBV_ACCESS_LOCAL_WRITE);
-    if(!mr){
+    ib_res->mr = ibv_reg_mr(ib_res->pd, addr, total_length, IBV_ACCESS_LOCAL_WRITE);
+    if(!ib_res->mr){
         ibv_utils_error("Failed to register memory.\n");
         return -1;
     }
     // create sge
     // TODO: the number of sge should be set according to the user's requirement
-    for(int i=0; i< WR_N; i++)
+    int wr_num = total_length / chunck_size;
+    ib_res->sge = (struct ibv_sge *)malloc(wr_num * sizeof(struct ibv_sge));
+    ib_res->send_wr = (struct ibv_send_wr *)malloc(wr_num * sizeof(struct ibv_send_wr));
+    ib_res->recv_wr = (struct ibv_recv_wr *)malloc(1 * sizeof(struct ibv_recv_wr));
+    ib_res->wc = (struct ibv_wc *)malloc(wr_num * sizeof(struct ibv_wc));
+    for(int i=0; i< wr_num; i++)
     {
-        global_sg_entry[i].addr = (uint64_t)(addr)+i*chunck_size;
-        global_sg_entry[i].length = chunck_size ;
-        global_sg_entry[i].lkey = mr->lkey;
+        ib_res->sge[i].addr = (uint64_t)(addr)+i*chunck_size;
+        ib_res->sge[i].length = chunck_size ;
+        ib_res->sge[i].lkey = ib_res->mr->lkey;
+    }
+    for(int i = 0; i < wr_num; i++)
+    {
+        memset(ib_res->recv_wr, 0, sizeof(struct ibv_recv_wr));
+        ib_res->recv_wr->num_sge = 1;
+        /* each descriptor points to max MTU size buffer */
+        ib_res->sge[i].addr = (uint64_t)addr + chunck_size*i;
+        ib_res->recv_wr->sg_list= &ib_res->sge[i];
+        ib_res->recv_wr->next = NULL;
+        ib_res->recv_wr->wr_id = i;
+        /* post receive buffer to ring */
+        ibv_post_recv(ib_res->qp, ib_res->recv_wr, &ib_res->bad_recv_wr);
     }
     return 0;
 }
@@ -217,11 +233,11 @@ int register_memory(int device_id, void *addr, size_t total_length, size_t chunc
 /*
 create flow for packet filtering
 */
-int create_flow(int device_id, struct pkt_info *pkt_info)
+int create_flow(struct ibv_utils_res *ib_res, struct pkt_info *pkt_info)
 {
     ibv_utils_warn("Creating flow.");
     // get the qp by device id
-    struct ibv_qp *qp = ib_global_qp[device_id];
+    struct ibv_qp *qp = ib_res->qp;
 
     // TODO: add more flexible for the flow control
     // Register steering rule to intercept packet to DEST_MAC and place packet in ring pointed by ->qp
@@ -303,50 +319,49 @@ int create_flow(int device_id, struct pkt_info *pkt_info)
     return 0;
 }
 
-int set_global_res(int device_id)
-{
-    ibv_utils_warn("Setting global resources.");
-    // set the global device id, qp and cq
-    global_device_id = device_id;
-    global_qp = ib_global_qp[device_id];
-    global_cq = ib_global_cq[device_id];
-    for(int i = 0; i < WR_N; i++) global_wc[i].wr_id = i;
-}
-
-int ib_send(int device_id)
+int ib_send(struct ibv_utils_res *ibv_res)
 {
     // TODO: implement the ib_send function
 }
 
-int ib_recv(int device_id)
+int ib_recv(struct ibv_utils_res *ibv_res)
 {  
-    for(int i = 0; i < recv_completed; i++)
+    int recv_completed = 0;
+    recv_completed = ibv_poll_cq(ibv_res->cq, 16, ibv_res->wc);
+    if(recv_completed > 0)
     {
-        global_wr.wr_id = global_wc[i].wr_id;
-        global_wr.sg_list = &global_sg_entry[i];
-        global_wr.num_sge = 1;
-        global_wr.next = NULL;
-        ibv_post_recv(global_qp, &global_wr, &global_bad_wr);
-    }   
-    recv_completed = ibv_poll_cq(global_cq, POLL_N, global_wc);
+        for(int i = 0; i < recv_completed; i++)
+        {
+            ibv_res->recv_wr->wr_id = ibv_res->wc[i].wr_id;
+            ibv_res->recv_wr->sg_list = &ibv_res->sge[ibv_res->wc[i].wr_id];
+            ibv_post_recv(ibv_res->qp, ibv_res->recv_wr, &ibv_res->bad_recv_wr);
+        }   
+    }
+    //recv_completed = ibv_poll_cq(global_cq, POLL_N, global_wc);
+    
     return recv_completed;
 }
 
-int destroy_ib_res(int device_id)
+int destroy_ib_res(struct ibv_utils_res *ib_res)
 {
     // get the ib res by device id, and then dealloc them
-    struct ibv_pd *pd = ib_global_pd[device_id];
+    struct ibv_pd *pd = ib_res->pd;
     ibv_dealloc_pd(pd);
-    struct ibv_cq *cq = ib_global_cq[device_id];
+    struct ibv_cq *cq = ib_res->cq;
     ibv_destroy_cq(cq);
-    struct ibv_mr *mr = ib_global_mr[device_id];
+    struct ibv_mr *mr = ib_res->mr;
     ibv_dereg_mr(mr);
-    struct ibv_qp *qp = ib_global_qp[device_id];
+    struct ibv_qp *qp = ib_res->qp;
     ibv_destroy_qp(qp);
+    free(ib_res->sge);
+    free(ib_res->send_wr);
+    free(ib_res->recv_wr);
+    free(ib_res->wc);
+    return 0;
 }
 
-int close_ib_device(int device_id)
+int close_ib_device(struct ibv_utils_res *ib_res)
 {
-    struct ibv_context *context = ib_global_context[device_id];
+    struct ibv_context *context = ib_res->context;
     ibv_close_device(context);
 }

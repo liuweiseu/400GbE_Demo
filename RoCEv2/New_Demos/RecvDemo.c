@@ -7,6 +7,10 @@
 #include <assert.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <infiniband/verbs.h>
+
+#include "cuda.h"
+#include "cuda_runtime.h"
 
 #include "ibv_utils.h"
 #include "pkt_gen.h"
@@ -35,9 +39,10 @@ int total_recv_pre;
 int msgs_completed;
 
 struct args {
-    int device_id;
+    uint8_t device_id;
     struct pkt_info pkt_info;
-    int gpu;
+    uint8_t use_gpu;
+    uint8_t gpu_id;
 };
 
 /*
@@ -74,18 +79,18 @@ void parse_args(struct args *args, int argc, char *argv[])
         {.name = "dip", .has_arg = required_argument, .flag = NULL, .val = 259},
         {.name = "sport", .has_arg = required_argument, .flag = NULL, .val = 260},
         {.name = "dport", .has_arg = required_argument, .flag = NULL, .val = 261},
-        {.name = "gpu", .has_arg = no_argument, .flag = NULL, .val = 'g'},
+        {.name = "gpu", .has_arg = required_argument, .flag = NULL, .val = 'g'},
         {.name = "help", .has_arg = no_argument, .flag = NULL, .val = 'h'},
         {0, 0, 0, 0}
     };
     while(1)
     {
         //c = getopt_long(argc, argv, "S:D:s:d:p:P:gh", long_options, &long_option_index);
-        c = getopt_long(argc, argv, "d:gh", long_options, &long_option_index);
+        c = getopt_long(argc, argv, "d:g:h", long_options, &long_option_index);
         switch (c)
         {
             case 'd':
-                sscanf(optarg, "%d", &args->device_id);
+                sscanf(optarg, "%hhd", &args->device_id);
                 break;
             case 256:
                 sscanf(optarg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", 
@@ -120,7 +125,8 @@ void parse_args(struct args *args, int argc, char *argv[])
                 sscanf(optarg, "%hd", &args->pkt_info.dst_port);
                 break;
             case 'g':
-                args->gpu = 1;
+                args->use_gpu = 1;
+                args->gpu_id = atoi(optarg);
                 break;
             case 'h':
                 print_helper();
@@ -169,10 +175,12 @@ void print_dev_info(struct args *args){
     printf("    dst_ip: %d.%d.%d.%d\n", tmp[0], tmp[1], tmp[2], tmp[3]);
     printf("    src_port: %d\n", args->pkt_info.src_port);
     printf("    dst_port: %d\n", args->pkt_info.dst_port);
+    if(args->use_gpu)
+        printf("    use_gpu: %d, gpu_id: %d\n", args->use_gpu, args->gpu_id);
     printf("**********************************************\n");
 }
 
-void main(int argc, char *argv[]){
+int main(int argc, char *argv[]){
 
     int num_dev = 0;
     struct args args;
@@ -180,24 +188,26 @@ void main(int argc, char *argv[]){
     parse_args(&args, argc, argv);
     print_dev_info(&args);
 
-    printf("Start to recv.\n");
+    struct ibv_utils_res ibv_res;
+    memset(&ibv_res, 0, sizeof(struct ibv_utils_res));
+    printf("Start to recv...\n");
     // get ib device list
     num_dev = get_ib_devices();
     printf("The number of ib devices is %d.\n", num_dev);
     // open ib device by id
     int ret = 0;
-    ret = open_ib_device(args.device_id);
+    ret = open_ib_device(args.device_id, &ibv_res);
     if (ret < 0) {
         printf("Failed to open IB device.\n");
-        return;
+        return -1;
     }
     printf("Open IB device successfully.\n");
 
     // only implement recv here
-    ret = create_ib_res(args.device_id, 0, 512);
+    ret = create_ib_res(&ibv_res, 0, 512);
     if (ret < 0) {
         printf("Failed to create ib resources.\n");
-        return;
+        return -2;
     }
     else
     {
@@ -205,22 +215,51 @@ void main(int argc, char *argv[]){
     }
 
     // init ib resources
-    ret = init_ib_res(args.device_id);
+    ret = init_ib_res(&ibv_res);
     if (ret < 0) {
         printf("Failed to init ib resources.\n");
-        return;
+        return -3;
     }
     else
     {
         printf("Init IB resources successfully.\n");
     }
 
-    // register memory
-    uint8_t *buf = (uint8_t *)malloc(PKT_LEN * 512);
-    ret = register_memory(args.device_id, buf, PKT_LEN * 512, PKT_LEN);
+    // register memory;
+    void *buf;
+    uint32_t buf_size = PKT_LEN * 512;
+    if (args.use_gpu) {
+        int state;
+        unsigned int flag = 1;
+        printf("Allocate memory on GPU.\n");
+        cudaSetDevice(args.gpu_id);
+        state = cudaMalloc((void **) &buf, buf_size);
+        if(state == 0)
+            printf("Allocate GPU memory successfully!\n");
+        else
+        {
+            printf("Failed to allocate GPU memory.\n");
+            exit(1);
+        }
+        state = cuPointerSetAttribute(&flag, CU_POINTER_ATTRIBUTE_SYNC_MEMOPS, (uintptr_t)buf);
+        if(state == 0)
+            printf("Pinned GPU memory successfully!\n");
+        else
+        {
+            printf("Failed to pin GPU memory.\n");
+            exit(1);
+        }
+    }
+    else
+    {
+        printf("Allocate memory on host.\n");
+        buf = (uint8_t *)malloc(buf_size);
+    }
+    
+    ret = register_memory(&ibv_res, buf, buf_size, PKT_LEN);
     if (ret < 0) {
         printf("Failed to register memory.\n");
-        return;
+        return -4;
     }
     else
     {
@@ -228,17 +267,17 @@ void main(int argc, char *argv[]){
     }
 
     // create flow
-    ret = create_flow(args.device_id, &args.pkt_info);
+    ret = create_flow(&ibv_res, &args.pkt_info);
     if (ret < 0) {
         printf("Failed to create flow.\n");
-        return;
+        return -5;
     }
     else
     {
         printf("Create flow successfully.\n");
     }
     // set global resources
-    set_global_res(args.device_id);
+    //set_global_res(args.device_id);
 
     // recv
     while (1) {
@@ -253,14 +292,17 @@ void main(int argc, char *argv[]){
 				printf("total_recv: %d\n",total_recv);
 			}
 		}
-        msgs_completed = ib_recv(args.device_id);
+        msgs_completed = ib_recv(&ibv_res);
         if (msgs_completed < 0) {
             printf("Failed to recv.\n");
-            return;
+            return -6;
         }
-        total_recv += msgs_completed;
     }
-    free(buf);
-    destroy_ib_res(args.device_id);
-    close_ib_device(args.device_id);
+    if(args.use_gpu)
+        cudaFree(buf);
+    else
+        free(buf);
+    destroy_ib_res(&ibv_res);
+    close_ib_device(&ibv_res);
+    return 0;
 }
