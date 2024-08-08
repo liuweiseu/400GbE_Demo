@@ -6,7 +6,7 @@
 #define MAX_DEV_NUM 2
 
 // define a structure for packet information
-struct pkt_info {
+struct ibv_pkt_info {
     uint8_t src_mac[6];
     uint8_t dst_mac[6];
     uint32_t src_ip;
@@ -40,7 +40,7 @@ int open_ib_device_by_name(const char *device_name);
 int create_ib_res(struct ibv_utils_res *ib_res, int send_wr_num, int recv_wr_num);
 int init_ib_res(struct ibv_utils_res *ib_res);
 int register_memory(struct ibv_utils_res *ib_res, void *addr, size_t total_length, size_t chunck_size);
-int create_flow(struct ibv_utils_res *ib_res, struct pkt_info *pkt_info);
+int create_flow(struct ibv_utils_res *ib_res, struct ibv_pkt_info *pkt_info);
 int ib_send(struct ibv_utils_res *ib_res);
 int ib_recv(struct ibv_utils_res *ib_res);
 int destroy_ib_res(struct ibv_utils_res *ib_res);

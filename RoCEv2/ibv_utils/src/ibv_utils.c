@@ -227,7 +227,7 @@ int register_memory(struct ibv_utils_res *ib_res, void *addr, size_t total_lengt
 /*
 create flow for packet filtering
 */
-int create_flow(struct ibv_utils_res *ib_res, struct pkt_info *pkt_info)
+int create_flow(struct ibv_utils_res *ib_res, struct ibv_pkt_info *pkt_info)
 {
     ibv_utils_warn("Creating flow.");
     struct ibv_qp *qp = ib_res->qp;
