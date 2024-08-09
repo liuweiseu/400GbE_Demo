@@ -30,6 +30,7 @@ struct args {
     uint8_t use_gpu;
     uint8_t gpu_id;
     uint8_t disable_recv;
+    uint8_t help_info;
 };
 
 void parse_args(struct args *args, int argc, char *argv[]);

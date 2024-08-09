@@ -7,7 +7,7 @@
 
 #include "ibv_utils.h"
 
-#define WR_N 512
+#define WR_N 32768
 #define POLL_N 16
 
 struct ibv_context *ib_global_context[MAX_DEV_NUM];
@@ -135,7 +135,7 @@ int create_ib_res(struct ibv_utils_res *ib_res, int send_wr_num, int recv_wr_num
         .recv_cq = ib_res->cq,
         .cap = {
             .max_send_wr = send_wr_num,
-            .max_recv_sge = 1,
+            .max_recv_sge = MAX_SGE,
             .max_recv_wr = recv_wr_num
         },
         .qp_type = IBV_QPT_RAW_PACKET,
@@ -207,11 +207,11 @@ int register_memory(struct ibv_utils_res *ib_res, void *addr, size_t total_lengt
     // create sge
     // TODO: the number of sge should be set according to the user's requirement
     int wr_num = total_length / chunck_size;
-    ib_res->sge = (struct ibv_sge *)malloc(wr_num * sizeof(struct ibv_sge));
+    ib_res->sge = (struct ibv_sge *)malloc(wr_num * sizeof(struct ibv_sge)*MAX_SGE);
     ib_res->send_wr = (struct ibv_send_wr *)malloc(1 * sizeof(struct ibv_send_wr));
     ib_res->recv_wr = (struct ibv_recv_wr *)malloc(1 * sizeof(struct ibv_recv_wr));
     ib_res->wc = (struct ibv_wc *)malloc(wr_num * sizeof(struct ibv_wc));
-    for(int i=0; i< wr_num; i++)
+    for(int i=0; i< wr_num * MAX_SGE; i++)
     {
         ib_res->sge[i].addr = (uint64_t)(addr)+i*chunck_size;
         ib_res->sge[i].length = chunck_size ;
@@ -323,8 +323,8 @@ int ib_recv(struct ibv_utils_res *ibv_res)
         for(int i = 0; i < recv_completed; i++)
         {
             ibv_res->recv_wr->wr_id = ibv_res->wc[i].wr_id;
-            ibv_res->recv_wr->sg_list = &ibv_res->sge[ibv_res->wc[i].wr_id];
-            ibv_res->recv_wr->num_sge = 1;
+            ibv_res->recv_wr->sg_list = &ibv_res->sge[ibv_res->wc[i].wr_id*MAX_SGE];
+            ibv_res->recv_wr->num_sge = MAX_SGE;
             ibv_res->recv_wr->next = NULL;
             ibv_post_recv(ibv_res->qp, ibv_res->recv_wr, &ibv_res->bad_recv_wr);
         }   

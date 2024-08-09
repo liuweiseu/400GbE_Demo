@@ -23,8 +23,6 @@ int total_recv;
 int total_recv_pre;
 int msgs_completed;
 
-
-
 /*
 Print out help information.
 */
@@ -42,6 +40,7 @@ void print_helper()
     printf("    --sport, source port number.\n");
     printf("    --dport, destination port number.\n");
     printf("    --gpu, allocate memory on GPU. the memory is allocated on the host by default.\n");
+    printf("    --disable-recv, disable recv.\n");
 }
 
 
@@ -51,6 +50,8 @@ int main(int argc, char *argv[]){
     struct args args;
     memset(&args, 0, sizeof(struct args));
     parse_args(&args, argc, argv);
+    if(args.help_info)
+        return 0;
     print_dev_info(&args);
 
     struct ibv_utils_res ibv_res;
@@ -92,7 +93,7 @@ int main(int argc, char *argv[]){
 
     // register memory;
     void *buf;
-    uint32_t buf_size = PKT_LEN * 512;
+    uint32_t buf_size = PKT_LEN * 512 * MAX_SGE;
     if (args.use_gpu) {
         int state;
         unsigned int flag = 1;

@@ -72,12 +72,14 @@ void parse_args(struct args *args, int argc, char *argv[])
                 break;
             case 'h':
                 print_helper();
+                args->help_info = 1;
                 break;
             case -1:
                 return;
             default:
                 printf("Invalid option.\n");
                 print_helper();
+                args->help_info = 1;
                 return;
         }
     }
