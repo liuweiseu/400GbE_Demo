@@ -915,7 +915,7 @@ int main(int argc, char *argv[])
                     }
                     wr1.wr_id = wc1[i].wr_id;
                     wr1.sg_list = &sg_entry1[wc1[i].wr_id];
-                    ibv_post_recv(qp1, &wr1, &bad_wr1);
+                    //ibv_post_recv(qp1, &wr1, &bad_wr1);
                 }
             }
             else
