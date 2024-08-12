@@ -28,6 +28,9 @@ struct ibv_utils_res {
     struct ibv_recv_wr *recv_wr;
     struct ibv_wc *wc;
     struct ibv_recv_wr *bad_recv_wr;
+    struct ibv_send_wr *bad_send_wr;
+    int send_wr_num;
+    int recv_wr_num;
 };
 
 // APIs

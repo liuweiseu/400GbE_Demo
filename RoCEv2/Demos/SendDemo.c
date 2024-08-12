@@ -19,14 +19,11 @@
 uint64_t ns_elapsed;
 struct timespec ts_start;
 struct timespec ts_now;
-int total_recv;
-int total_recv_pre;
-int msgs_completed;
 
 /*
 Print out help information.
 */
-void print_recv_helper()
+void print_send_helper()
 {
     printf("Usage:\n");
     printf("    RecvDemo     Receiver demo at 400Gbps\n\n");
@@ -39,30 +36,29 @@ void print_recv_helper()
     printf("    --dip, destination IP address.\n");
     printf("    --sport, source port number.\n");
     printf("    --dport, destination port number.\n");
-    printf("    --gpu, allocate memory on GPU. the memory is allocated on the host by default.\n");
-    printf("    --disable-recv, disable recv.\n");
 }
 
-
-int main(int argc, char *argv[]){
-
+int main(int argc, char *argv[])
+{
     int num_dev = 0;
-    struct recv_args args;
-    memset(&args, 0, sizeof(struct recv_args));
-    parse_recv_args(&args, argc, argv);
+    struct send_args args;
+    memset(&args, 0, sizeof(struct send_args));
+    parse_send_args(&args, argc, argv);
     if(args.help_info)
     {
-        print_recv_helper();
+        print_send_helper();
         return 0;
     }
-    print_recv_info(&args);
-    
+    print_send_info(&args);
+
     struct ibv_utils_res ibv_res;
     memset(&ibv_res, 0, sizeof(struct ibv_utils_res));
-    printf("Start to recv...\n");
+    printf("Start to send...\n");
+
     // get ib device list
     num_dev = get_ib_devices();
     printf("The number of ib devices is %d.\n", num_dev);
+
     // open ib device by id
     int ret = 0;
     ret = open_ib_device(args.device_id, &ibv_res);
@@ -73,7 +69,7 @@ int main(int argc, char *argv[]){
     printf("Open IB device successfully.\n");
 
     // only implement recv here
-    ret = create_ib_res(&ibv_res, 0, 512);
+    ret = create_ib_res(&ibv_res, 512, 0);
     if (ret < 0) {
         printf("Failed to create ib resources.\n");
         return -2;
@@ -94,83 +90,49 @@ int main(int argc, char *argv[]){
         printf("Init IB resources successfully.\n");
     }
 
-    // register memory;
+    // create pkts
     void *buf;
     uint32_t buf_size = PKT_LEN * 512 * MAX_SGE;
-    if (args.use_gpu) {
-        int state;
-        unsigned int flag = 1;
-        printf("Allocate memory on GPU.\n");
-        cudaSetDevice(args.gpu_id);
-        state = cudaMalloc((void **) &buf, buf_size);
-        if(state == 0)
-            printf("Allocate GPU memory successfully!\n");
-        else
-        {
-            printf("Failed to allocate GPU memory.\n");
-            exit(1);
-        }
-        state = cuPointerSetAttribute(&flag, CU_POINTER_ATTRIBUTE_SYNC_MEMOPS, (uintptr_t)buf);
-        if(state == 0)
-            printf("Pinned GPU memory successfully!\n");
-        else
-        {
-            printf("Failed to pin GPU memory.\n");
-            exit(1);
-        }
+    buf = (uint8_t *)malloc(buf_size);
+    if (buf == NULL) {
+        printf("Failed to allocate memory.\n");
+        return -4;
     }
-    else
-    {
-        printf("Allocate memory on host.\n");
-        buf = (uint8_t *)malloc(buf_size);
+    // generate pkts
+    for(int i = 0; i < 512 * MAX_SGE; i++) {
+        struct udp_pkt *pkt = (struct udp_pkt *)((uint8_t *)buf + i * PKT_LEN);
+        set_dest_mac(pkt, args.pkt_info.dst_mac);
+        set_src_mac(pkt, args.pkt_info.src_mac);
+        set_eth_type(pkt, (uint8_t *)"\x08\x00");
+        set_ip_hdrs(pkt, (uint8_t *)"\x45\x00\x00\x00\x00\x00\x00\x00\x40\x11\x00\x00");
+        set_src_ip(pkt, (uint8_t *)(&args.pkt_info.src_ip));
+        set_dst_ip(pkt, (uint8_t *)(&args.pkt_info.dst_ip));
+        set_udp_src_port(pkt, args.pkt_info.src_port);
+        set_udp_dst_port(pkt, args.pkt_info.dst_port);
+        set_payload(pkt, (uint8_t *)"Hello, world!", 13);
     }
-    
+
+    // register memory
     ret = register_memory(&ibv_res, buf, buf_size, PKT_LEN);
     if (ret < 0) {
         printf("Failed to register memory.\n");
-        return -4;
+        return -5;
     }
     else
     {
         printf("Register memory successfully.\n");
     }
 
-    // create flow
-    ret = create_flow(&ibv_res, (struct ibv_pkt_info *)&args.pkt_info);
+    // send pkts
+    ret = ib_send(&ibv_res);
     if (ret < 0) {
-        printf("Failed to create flow.\n");
-        return -5;
+        printf("Failed to send pkts.\n");
+        return -6;
     }
     else
     {
-        printf("Create flow successfully.\n");
+        printf("Send pkts successfully.\n");
     }
-
-    // recv
-    while (1) {
-        clock_gettime(CLOCK_MONOTONIC_RAW, &ts_now);
-		ns_elapsed = ELAPSED_NS(ts_start, ts_now);
-		if(ns_elapsed > UPDATE_MS * 1000 * 1000)
-		{
-			ts_start = ts_now;
-			if(total_recv != total_recv_pre)
-			{
-				total_recv_pre = total_recv;
-				printf("total_recv: %d\n",total_recv);
-			}
-		}
-        if(args.disable_recv == 0)msgs_completed = ib_recv(&ibv_res);
-        if (msgs_completed < 0) {
-            printf("Failed to recv.\n");
-            return -6;
-        }
-        total_recv += msgs_completed;
-    }
-    if(args.use_gpu)
-        cudaFree(buf);
-    else
-        free(buf);
-    destroy_ib_res(&ibv_res);
-    close_ib_device(&ibv_res);
     return 0;
 }
+

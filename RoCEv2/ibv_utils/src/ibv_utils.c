@@ -106,6 +106,8 @@ int create_ib_res(struct ibv_utils_res *ib_res, int send_wr_num, int recv_wr_num
     ibv_utils_warn("Creating IB resources.");
     // save the wr number to global variable
     int wr_num = send_wr_num > recv_wr_num ? send_wr_num : recv_wr_num;
+    ib_res->send_wr_num = send_wr_num;
+    ib_res->recv_wr_num = recv_wr_num;
     // create pd
     ibv_utils_warn("Creating pd.");
     ib_res->pd = ibv_alloc_pd(ib_res->context);
@@ -313,7 +315,26 @@ int create_flow(struct ibv_utils_res *ib_res, struct ibv_pkt_info *pkt_info)
 
 int ib_send(struct ibv_utils_res *ibv_res)
 {
+    int i = 0, state = 0;
     // TODO: implement the ib_send function
+    for(i = 0; i < ibv_res->send_wr_num; i++)
+    {
+        ibv_res->send_wr->wr_id = i;
+        ibv_res->send_wr->sg_list = &ibv_res->sge[i*MAX_SGE];
+        ibv_res->send_wr->num_sge = MAX_SGE;
+        ibv_res->send_wr->next = NULL;
+        state = ibv_post_send(ibv_res->qp, ibv_res->send_wr, &ibv_res->bad_send_wr);
+        if(state < 0)
+        {
+            ibv_utils_error("Failed to post send.\n");
+            return -1;
+        }
+    }
+    for(i = 0; i < ibv_res->send_wr_num; i++)
+    {
+        ibv_poll_cq(ibv_res->cq, POLL_N, ibv_res->wc);
+    }
+    return 0;
 }
 
 int ib_recv(struct ibv_utils_res *ibv_res)

@@ -24,7 +24,8 @@ struct pkt_info {
     uint16_t dst_port;
 };
 
-struct args {
+// for recv args
+struct recv_args {
     uint8_t device_id;
     struct pkt_info pkt_info;
     uint8_t use_gpu;
@@ -33,7 +34,16 @@ struct args {
     uint8_t help_info;
 };
 
-void parse_args(struct args *args, int argc, char *argv[]);
-void print_dev_info(struct args *args);
+// for send args
+struct send_args {
+    uint8_t device_id;
+    struct pkt_info pkt_info;
+    uint8_t help_info;
+};
+
+void parse_recv_args(struct recv_args *args, int argc, char *argv[]);
+void print_recv_info(struct recv_args *args);
+void parse_send_args(struct send_args *args, int argc, char *argv[]);
+void print_send_info(struct send_args *args);
 
 #endif
