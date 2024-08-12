@@ -27,6 +27,8 @@ The code is used for 400G Ethernet tests.
     ```
 4. compile the code
     ```
+    cd build
+    cmake ../
     make
     sudo make install
     ```
