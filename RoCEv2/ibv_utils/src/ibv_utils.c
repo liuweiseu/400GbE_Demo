@@ -137,8 +137,9 @@ int create_ib_res(struct ibv_utils_res *ib_res, int send_wr_num, int recv_wr_num
         .recv_cq = ib_res->cq,
         .cap = {
             .max_send_wr = send_wr_num,
+            .max_send_sge = MAX_SGE,
+            .max_recv_wr = recv_wr_num,
             .max_recv_sge = MAX_SGE,
-            .max_recv_wr = recv_wr_num
         },
         .qp_type = IBV_QPT_RAW_PACKET,
     };
@@ -215,7 +216,7 @@ int register_memory(struct ibv_utils_res *ib_res, void *addr, size_t total_lengt
     ib_res->wc = (struct ibv_wc *)malloc(wr_num * sizeof(struct ibv_wc));
     for(int i=0; i< wr_num * MAX_SGE; i++)
     {
-        ib_res->sge[i].addr = (uint64_t)(addr)+i*chunck_size;
+        ib_res->sge[i].addr = (uint64_t)(addr+i*chunck_size);
         ib_res->sge[i].length = chunck_size ;
         ib_res->sge[i].lkey = ib_res->mr->lkey;
     }
@@ -315,14 +316,18 @@ int create_flow(struct ibv_utils_res *ib_res, struct ibv_pkt_info *pkt_info)
 
 int ib_send(struct ibv_utils_res *ibv_res)
 {
-    int i = 0, state = 0;
+    int i = 0, state = 0, ns = 0, msc = 0;
     // TODO: implement the ib_send function
+    printf("send_wr_num: %d\n", ibv_res->send_wr_num);
+    memset(ibv_res->send_wr, 0, sizeof(struct ibv_send_wr));
     for(i = 0; i < ibv_res->send_wr_num; i++)
     {
         ibv_res->send_wr->wr_id = i;
         ibv_res->send_wr->sg_list = &ibv_res->sge[i*MAX_SGE];
         ibv_res->send_wr->num_sge = MAX_SGE;
         ibv_res->send_wr->next = NULL;
+        ibv_res->send_wr->opcode = IBV_WR_SEND;
+        ibv_res->send_wr->send_flags |= IBV_SEND_SIGNALED;
         state = ibv_post_send(ibv_res->qp, ibv_res->send_wr, &ibv_res->bad_send_wr);
         if(state < 0)
         {
@@ -330,9 +335,10 @@ int ib_send(struct ibv_utils_res *ibv_res)
             return -1;
         }
     }
-    for(i = 0; i < ibv_res->send_wr_num; i++)
+    while(ns < ibv_res->send_wr_num)
     {
-        ibv_poll_cq(ibv_res->cq, POLL_N, ibv_res->wc);
+        msc = ibv_poll_cq(ibv_res->cq, POLL_N, ibv_res->wc);
+        ns += msc;
     }
     return 0;
 }

@@ -26,7 +26,7 @@ Print out help information.
 void print_send_helper()
 {
     printf("Usage:\n");
-    printf("    RecvDemo     Receiver demo at 400Gbps\n\n");
+    printf("    SendDemo     Sender demo at 400Gbps\n\n");
     printf("Options:\n");
     printf("    -h, print out the helper information.\n");
     printf("    -d, NIC dev number. '0' means mlx5_0.\n");
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     // create pkts
     void *buf;
     uint32_t buf_size = PKT_LEN * 512 * MAX_SGE;
-    buf = (uint8_t *)malloc(buf_size);
+    buf = malloc(buf_size);
     if (buf == NULL) {
         printf("Failed to allocate memory.\n");
         return -4;
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
         set_dest_mac(pkt, args.pkt_info.dst_mac);
         set_src_mac(pkt, args.pkt_info.src_mac);
         set_eth_type(pkt, (uint8_t *)"\x08\x00");
-        set_ip_hdrs(pkt, (uint8_t *)"\x45\x00\x00\x00\x00\x00\x00\x00\x40\x11\x00\x00");
+        set_ip_hdrs(pkt, (uint8_t *)"\x45\x00\x00\x1f\x54\x00\x00\x00\x40\x11\xaf\xb6");
         set_src_ip(pkt, (uint8_t *)(&args.pkt_info.src_ip));
         set_dst_ip(pkt, (uint8_t *)(&args.pkt_info.dst_ip));
         set_udp_src_port(pkt, args.pkt_info.src_port);
@@ -133,6 +133,9 @@ int main(int argc, char *argv[])
     {
         printf("Send pkts successfully.\n");
     }
+    free(buf);
+    destroy_ib_res(&ibv_res);
+    close_ib_device(&ibv_res);
     return 0;
 }
 

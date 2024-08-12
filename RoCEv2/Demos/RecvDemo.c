@@ -122,7 +122,16 @@ int main(int argc, char *argv[]){
     else
     {
         printf("Allocate memory on host.\n");
-        buf = (uint8_t *)malloc(buf_size);
+        // buf = malloc(buf_size);
+        cudaMallocHost((void **)&buf, buf_size);
+        if (buf == NULL) {
+            printf("Failed to allocate memory.\n");
+            return -4;
+        }
+        else
+        {
+            printf("Allocate memory successfully.\n");
+        }
     }
     
     ret = register_memory(&ibv_res, buf, buf_size, PKT_LEN);
@@ -169,7 +178,8 @@ int main(int argc, char *argv[]){
     if(args.use_gpu)
         cudaFree(buf);
     else
-        free(buf);
+        //free(buf);
+        cudaFreeHost(buf);
     destroy_ib_res(&ibv_res);
     close_ib_device(&ibv_res);
     return 0;

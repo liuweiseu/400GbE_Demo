@@ -47,6 +47,8 @@ void set_udp_src_port(struct udp_pkt *pkt, uint16_t port) {
 void set_udp_dst_port(struct udp_pkt *pkt, uint16_t port) {
     pkt->udp_hdr[2] = (port >> 8) & 0xFF;
     pkt->udp_hdr[3] = port & 0xFF;
+    pkt->udp_hdr[4] = 0x1f;
+    pkt->udp_hdr[5] = 0x40;
 }
 
 void set_payload(struct udp_pkt *pkt, uint8_t *payload, int len) {
