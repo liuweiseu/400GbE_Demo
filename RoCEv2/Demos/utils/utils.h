@@ -14,7 +14,7 @@
 #define UPDATE_MS	1000
 #define ELAPSED_NS(start,stop) \
     (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
-
+#define MEASURE_BANDWIDTH(size, t) ((double)size * 8.0 / t)
 struct pkt_info {
     uint8_t src_mac[6];
     uint8_t dst_mac[6];

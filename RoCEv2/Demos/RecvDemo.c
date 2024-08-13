@@ -16,13 +16,6 @@
 #include "pkt_gen.h"
 #include "utils.h"
 
-uint64_t ns_elapsed;
-struct timespec ts_start;
-struct timespec ts_now;
-int total_recv;
-int total_recv_pre;
-int msgs_completed;
-
 /*
 Print out help information.
 */
@@ -47,6 +40,13 @@ void print_recv_helper()
 int main(int argc, char *argv[]){
 
     int num_dev = 0;
+    uint64_t ns_elapsed;
+    struct timespec ts_start;
+    struct timespec ts_now;
+    int total_recv;
+    int total_recv_pre;
+    int msgs_completed;
+    float bandwidth;
     struct recv_args args;
     memset(&args, 0, sizeof(struct recv_args));
     parse_recv_args(&args, argc, argv);
@@ -164,8 +164,9 @@ int main(int argc, char *argv[]){
 			ts_start = ts_now;
 			if(total_recv != total_recv_pre)
 			{
-				total_recv_pre = total_recv;
-				printf("total_recv: %d\n",total_recv);
+                bandwidth = MEASURE_BANDWIDTH((total_recv - total_recv_pre) * PKT_LEN, ns_elapsed);
+                total_recv_pre = total_recv;
+				printf("total_recv: %-10d Bandwidth: %5.2f Gbps\n",total_recv, bandwidth);
 			}
 		}
         if(args.disable_recv == 0)msgs_completed = ib_recv(&ibv_res);
