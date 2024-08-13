@@ -22,7 +22,7 @@ Print out help information.
 void print_recv_helper()
 {
     printf("Usage:\n");
-    printf("    RecvDemo     Receiver demo at 400Gbps\n\n");
+    printf("    RecvDemo     Receiver Demo at 400Gbps\n\n");
     printf("Options:\n");
     printf("    -h, print out the helper information.\n");
     printf("    -d, NIC dev number. '0' means mlx5_0.\n");
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]){
     int msgs_completed;
     float bandwidth;
     struct recv_args args;
-    memset(&args, 0, sizeof(struct recv_args));
+    init_recv_args(&args);
     parse_recv_args(&args, argc, argv);
     if(args.help_info)
     {
@@ -181,6 +181,7 @@ int main(int argc, char *argv[]){
     else
         //free(buf);
         cudaFreeHost(buf);
+    free_recv_args(&args);
     destroy_ib_res(&ibv_res);
     close_ib_device(&ibv_res);
     return 0;

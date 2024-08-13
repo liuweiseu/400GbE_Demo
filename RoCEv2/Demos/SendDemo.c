@@ -26,7 +26,7 @@ Print out help information.
 void print_send_helper()
 {
     printf("Usage:\n");
-    printf("    SendDemo     Sender demo at 400Gbps\n\n");
+    printf("    SendDemo     Sender Demo at 400Gbps\n\n");
     printf("Options:\n");
     printf("    -h, print out the helper information.\n");
     printf("    -d, NIC dev number. '0' means mlx5_0.\n");
@@ -36,13 +36,14 @@ void print_send_helper()
     printf("    --dip, destination IP address.\n");
     printf("    --sport, source port number.\n");
     printf("    --dport, destination port number.\n");
+    printf("    --streams, number of streams.\n");
 }
 
 int main(int argc, char *argv[])
 {
     int num_dev = 0;
     struct send_args args;
-    memset(&args, 0, sizeof(struct send_args));
+    init_send_args(&args);
     parse_send_args(&args, argc, argv);
     if(args.help_info)
     {
@@ -101,14 +102,14 @@ int main(int argc, char *argv[])
     // generate pkts
     for(int i = 0; i < 512 * MAX_SGE; i++) {
         struct udp_pkt *pkt = (struct udp_pkt *)((uint8_t *)buf + i * PKT_LEN);
-        set_dest_mac(pkt, args.pkt_info.dst_mac);
-        set_src_mac(pkt, args.pkt_info.src_mac);
+        set_dest_mac(pkt, args.pkt_info[0].dst_mac);
+        set_src_mac(pkt, args.pkt_info[0].src_mac);
         set_eth_type(pkt, (uint8_t *)"\x08\x00");
         set_ip_hdrs(pkt, (uint8_t *)"\x45\x00\x00\x1f\x54\x00\x00\x00\x40\x11\xaf\xb6");
-        set_src_ip(pkt, (uint8_t *)(&args.pkt_info.src_ip));
-        set_dst_ip(pkt, (uint8_t *)(&args.pkt_info.dst_ip));
-        set_udp_src_port(pkt, args.pkt_info.src_port);
-        set_udp_dst_port(pkt, args.pkt_info.dst_port);
+        set_src_ip(pkt, (uint8_t *)(&args.pkt_info[0].src_ip));
+        set_dst_ip(pkt, (uint8_t *)(&args.pkt_info[0].dst_ip));
+        set_udp_src_port(pkt, args.pkt_info[0].src_port);
+        set_udp_dst_port(pkt, args.pkt_info[0].dst_port);
         set_payload(pkt, (uint8_t *)"Hello, world!", 13);
     }
 
@@ -134,6 +135,7 @@ int main(int argc, char *argv[])
         printf("Send pkts successfully.\n");
     }
     free(buf);
+    free_send_args(&args);
     destroy_ib_res(&ibv_res);
     close_ib_device(&ibv_res);
     return 0;

@@ -37,13 +37,18 @@ struct recv_args {
 // for send args
 struct send_args {
     uint8_t device_id;
-    struct pkt_info pkt_info;
+    struct pkt_info *pkt_info;
     uint8_t help_info;
+    uint8_t streams;
 };
 
+void init_recv_args(struct recv_args *args);
 void parse_recv_args(struct recv_args *args, int argc, char *argv[]);
 void print_recv_info(struct recv_args *args);
+void free_recv_args(struct recv_args *args);
+void init_send_args(struct send_args *args);
 void parse_send_args(struct send_args *args, int argc, char *argv[]);
 void print_send_info(struct send_args *args);
+void free_send_args(struct send_args *args);
 
 #endif

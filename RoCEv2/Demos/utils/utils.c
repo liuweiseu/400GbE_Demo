@@ -3,6 +3,13 @@
 #include "utils.h"
 
 /*
+Initialize the recv arguments.
+*/
+void init_recv_args(struct recv_args *args)
+{
+    memset(args, 0, sizeof(struct recv_args));
+}
+/*
 Parsse the command line arguments for recv.
 */
 void parse_recv_args(struct recv_args *args, int argc, char *argv[])
@@ -123,7 +130,24 @@ void print_recv_info(struct recv_args *args){
     printf("**********************************************\n");
 }
 
+/*
+Free the recv arguments.
+*/
+void free_recv_args(struct recv_args *args)
+{
+    // nothing to free for now
+    return;
+}
 
+/*
+Initialize the send arguments.
+*/
+void init_send_args(struct send_args *args)
+{
+    memset(args, 0, sizeof(struct send_args));
+    // by default, send one stream
+    args->streams = 1;
+}
 
 /*
 Parsse the command line arguments for send.
@@ -140,6 +164,7 @@ void parse_send_args(struct send_args *args, int argc, char *argv[])
         {.name = "dip", .has_arg = required_argument, .flag = NULL, .val = 259},
         {.name = "sport", .has_arg = required_argument, .flag = NULL, .val = 260},
         {.name = "dport", .has_arg = required_argument, .flag = NULL, .val = 261},
+        {.name = "streams", .has_arg = required_argument, .flag = NULL, .val = 262},
         {.name = "help", .has_arg = no_argument, .flag = NULL, .val = 'h'},
         {0, 0, 0, 0}
     };
@@ -153,36 +178,69 @@ void parse_send_args(struct send_args *args, int argc, char *argv[])
                 sscanf(optarg, "%hhd", &args->device_id);
                 break;
             case 256:
-                sscanf(optarg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", 
-                                &args->pkt_info.src_mac[0], 
-                                &args->pkt_info.src_mac[1],
-                                &args->pkt_info.src_mac[2],
-                                &args->pkt_info.src_mac[3],
-                                &args->pkt_info.src_mac[4],
-                                &args->pkt_info.src_mac[5]);
+                for(int i = 0; i < args->streams; i++)
+                {
+                    sscanf(optarg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", 
+                                &args->pkt_info[i].src_mac[0], 
+                                &args->pkt_info[i].src_mac[1],
+                                &args->pkt_info[i].src_mac[2],
+                                &args->pkt_info[i].src_mac[3],
+                                &args->pkt_info[i].src_mac[4],
+                                &args->pkt_info[i].src_mac[5]);
+                    // skip ","
+                    optarg = strtok(NULL, ",");
+                }
                 break;
             case 257:
-                sscanf(optarg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-                                &args->pkt_info.dst_mac[0],
-                                &args->pkt_info.dst_mac[1],
-                                &args->pkt_info.dst_mac[2],
-                                &args->pkt_info.dst_mac[3],
-                                &args->pkt_info.dst_mac[4],
-                                &args->pkt_info.dst_mac[5]);
+                for(int i = 0; i < args->streams; i++)
+                {
+                    sscanf(optarg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+                                &args->pkt_info[i].dst_mac[0],
+                                &args->pkt_info[i].dst_mac[1],
+                                &args->pkt_info[i].dst_mac[2],
+                                &args->pkt_info[i].dst_mac[3],
+                                &args->pkt_info[i].dst_mac[4],
+                                &args->pkt_info[i].dst_mac[5]);
+                    // skip ","
+                    optarg = strtok(NULL, ",");
+                }
                 break;
-            case 258:       
-                sscanf(optarg, "%hhd.%hhd.%hhd.%hhd", &tmp[0], &tmp[1], &tmp[2], &tmp[3]);
-                args->pkt_info.src_ip = (tmp[3] << 24) | (tmp[2] << 16) | (tmp[1] << 8) | tmp[0];
+            case 258: 
+                for(int i = 0; i < args->streams; i++)
+                {
+                    sscanf(optarg, "%hhd.%hhd.%hhd.%hhd", &tmp[0], &tmp[1], &tmp[2], &tmp[3]);
+                    args->pkt_info[i].src_ip = (tmp[3] << 24) | (tmp[2] << 16) | (tmp[1] << 8) | tmp[0];
+                    // skip ","
+                    optarg = strtok(NULL, ",");
+                }
                 break;
             case 259:
-                sscanf(optarg, "%hhd.%hhd.%hhd.%hhd", &tmp[0], &tmp[1], &tmp[2], &tmp[3]);
-                args->pkt_info.dst_ip = (tmp[3] << 24) | (tmp[2] << 16) | (tmp[1] << 8) | tmp[0];
+                for(int i = 0; i < args->streams; i++)
+                {
+                    sscanf(optarg, "%hhd.%hhd.%hhd.%hhd", &tmp[0], &tmp[1], &tmp[2], &tmp[3]);
+                    args->pkt_info[i].dst_ip = (tmp[3] << 24) | (tmp[2] << 16) | (tmp[1] << 8) | tmp[0];
+                    // skip ","
+                    optarg = strtok(NULL, ",");
+                }
                 break;
             case 260:
-                sscanf(optarg, "%hd", &args->pkt_info.src_port);
+                for(int i = 0; i < args->streams; i++)
+                {
+                    sscanf(optarg, "%hd", &args->pkt_info[i].src_port);
+                    // skip ","
+                    optarg = strtok(NULL, ",");
+                }
                 break;
             case 261:
-                sscanf(optarg, "%hd", &args->pkt_info.dst_port);
+                for(int i = 0; i < args->streams; i++)
+                {
+                    sscanf(optarg, "%hd", &args->pkt_info[i].dst_port);
+                    // skip ","
+                    optarg = strtok(NULL, ",");
+                }
+            case 262:
+                sscanf(optarg, "%hhd", &args->streams);
+                args->pkt_info = (struct pkt_info *)malloc(args->streams * sizeof(struct pkt_info));
                 break;
             case 'h':
                 args->help_info = 1;
@@ -197,7 +255,6 @@ void parse_send_args(struct send_args *args, int argc, char *argv[])
     }
 }
 
-
 /*
 Print out send information.
 */
@@ -205,32 +262,46 @@ void print_send_info(struct send_args *args){
     printf("**********************************************\n");
     printf("Send Config Information:\n");
     printf("    device_id: %d\n", args->device_id);
-    printf("    src_mac: %02x:%02x:%02x:%02x:%02x:%02x\n", 
-                args->pkt_info.src_mac[0], 
-                args->pkt_info.src_mac[1], 
-                args->pkt_info.src_mac[2], 
-                args->pkt_info.src_mac[3], 
-                args->pkt_info.src_mac[4], 
-                args->pkt_info.src_mac[5]);
-    printf("    dst_mac: %02x:%02x:%02x:%02x:%02x:%02x\n",
-                args->pkt_info.dst_mac[0],
-                args->pkt_info.dst_mac[1],
-                args->pkt_info.dst_mac[2],
-                args->pkt_info.dst_mac[3],
-                args->pkt_info.dst_mac[4],
-                args->pkt_info.dst_mac[5]);
-    uint8_t tmp[4];
-    tmp[3] = (args->pkt_info.src_ip >> 24) & 0xff;
-    tmp[2] = (args->pkt_info.src_ip >> 16) & 0xff;
-    tmp[1] = (args->pkt_info.src_ip >> 8) & 0xff;
-    tmp[0] = args->pkt_info.src_ip & 0xff;
-    printf("    src_ip: %d.%d.%d.%d\n", tmp[0], tmp[1], tmp[2], tmp[3]);
-    tmp[3] = (args->pkt_info.dst_ip >> 24) & 0xff;
-    tmp[2] = (args->pkt_info.dst_ip >> 16) & 0xff;
-    tmp[1] = (args->pkt_info.dst_ip >> 8) & 0xff;
-    tmp[0] = args->pkt_info.dst_ip & 0xff;
-    printf("    dst_ip: %d.%d.%d.%d\n", tmp[0], tmp[1], tmp[2], tmp[3]);
-    printf("    src_port: %d\n", args->pkt_info.src_port);
-    printf("    dst_port: %d\n", args->pkt_info.dst_port);
+    for(int i = 0; i < args->streams; i++)
+    {
+        printf("Stream %d:\n", i);
+        printf("    src_mac: %02x:%02x:%02x:%02x:%02x:%02x\n", 
+                    args->pkt_info[i].src_mac[0], 
+                    args->pkt_info[i].src_mac[1], 
+                    args->pkt_info[i].src_mac[2], 
+                    args->pkt_info[i].src_mac[3], 
+                    args->pkt_info[i].src_mac[4], 
+                    args->pkt_info[i].src_mac[5]);
+        printf("    dst_mac: %02x:%02x:%02x:%02x:%02x:%02x\n",
+                    args->pkt_info[i].dst_mac[0],
+                    args->pkt_info[i].dst_mac[1],
+                    args->pkt_info[i].dst_mac[2],
+                    args->pkt_info[i].dst_mac[3],
+                    args->pkt_info[i].dst_mac[4],
+                    args->pkt_info[i].dst_mac[5]);
+        uint8_t tmp[4];
+        tmp[3] = (args->pkt_info[i].src_ip >> 24) & 0xff;
+        tmp[2] = (args->pkt_info[i].src_ip >> 16) & 0xff;
+        tmp[1] = (args->pkt_info[i].src_ip >> 8) & 0xff;
+        tmp[0] = args->pkt_info[i].src_ip & 0xff;
+        printf("    src_ip: %d.%d.%d.%d\n", tmp[0], tmp[1], tmp[2], tmp[3]);
+        tmp[3] = (args->pkt_info[i].dst_ip >> 24) & 0xff;
+        tmp[2] = (args->pkt_info[i].dst_ip >> 16) & 0xff;
+        tmp[1] = (args->pkt_info[i].dst_ip >> 8) & 0xff;
+        tmp[0] = args->pkt_info[i].dst_ip & 0xff;
+        printf("    dst_ip: %d.%d.%d.%d\n", tmp[0], tmp[1], tmp[2], tmp[3]);
+        printf("    src_port: %d\n", args->pkt_info[i].src_port);
+        printf("    dst_port: %d\n", args->pkt_info[i].dst_port);
+    }
     printf("**********************************************\n");
+}
+
+/*
+Free the send arguments.
+*/
+void free_send_args(struct send_args *args)
+{
+    if(args->pkt_info)
+        free(args->pkt_info);
+    return;
 }
