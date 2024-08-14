@@ -31,6 +31,8 @@ struct ibv_utils_res {
     struct ibv_send_wr *bad_send_wr;
     int send_wr_num;
     int recv_wr_num;
+    int recv_nsge;
+    int send_nsge;
 };
 
 // APIs

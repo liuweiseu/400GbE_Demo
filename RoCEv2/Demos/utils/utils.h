@@ -27,6 +27,7 @@ struct pkt_info {
 // for recv args
 struct recv_args {
     uint8_t device_id;
+    uint8_t nsge;
     struct pkt_info pkt_info;
     uint8_t use_gpu;
     uint8_t gpu_id;

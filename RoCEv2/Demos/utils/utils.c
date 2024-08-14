@@ -8,6 +8,10 @@ Initialize the recv arguments.
 void init_recv_args(struct recv_args *args)
 {
     memset(args, 0, sizeof(struct recv_args));
+    // by default, use the first device
+    args->device_id = 0;
+    // by default, the number of sge is 1
+    args->nsge = 1;
 }
 /*
 Parsse the command line arguments for recv.
@@ -25,6 +29,7 @@ void parse_recv_args(struct recv_args *args, int argc, char *argv[])
         {.name = "sport", .has_arg = required_argument, .flag = NULL, .val = 260},
         {.name = "dport", .has_arg = required_argument, .flag = NULL, .val = 261},
         {.name = "disable-recv", .has_arg = no_argument, .flag = NULL, .val = 262},
+        {.name = "nsge", .has_arg = required_argument, .flag = NULL, .val = 263},
         {.name = "gpu", .has_arg = required_argument, .flag = NULL, .val = 'g'},
         {.name = "help", .has_arg = no_argument, .flag = NULL, .val = 'h'},
         {0, 0, 0, 0}
@@ -72,6 +77,9 @@ void parse_recv_args(struct recv_args *args, int argc, char *argv[])
                 break;
             case 262:
                 args->disable_recv = 1;
+                break;
+            case 263:
+                sscanf(optarg, "%hhd", &args->nsge);
                 break;
             case 'g':
                 args->use_gpu = 1;
@@ -145,6 +153,8 @@ Initialize the send arguments.
 void init_send_args(struct send_args *args)
 {
     memset(args, 0, sizeof(struct send_args));
+    // by default, use the first device
+    args->device_id = 0;
     // by default, send one stream
     args->streams = 1;
     args->pkt_info = (struct pkt_info *)malloc(args->streams * sizeof(struct pkt_info));

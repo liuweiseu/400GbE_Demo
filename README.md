@@ -39,8 +39,8 @@ The code is used for 400G Ethernet tests.
     RecvDemo     Receiver Demo at 400Gbps
 
     Options:
-        -h, print out the helper information.
         -d, NIC dev number. '0' means mlx5_0.
+        --nsge, number of sge. By default, nsge = 1.
         --smac, source MAC address.
         --dmac, destination MAC address.
         --sip, source IP address.
@@ -56,9 +56,9 @@ The code is used for 400G Ethernet tests.
     SendDemo     Sender Demo at 400Gbps
 
     Options:
-        -h, print out the helper information.
         -d, NIC dev number. '0' means mlx5_0.
-        -N, the packet number to be sent out is Nx512.
+        -n, the packet number in one group. By default, n = 512.
+        -N, the number of packet groups. By default, N = 1.
         --smac, source MAC address.
         --dmac, destination MAC address.
         --sip, source IP address.

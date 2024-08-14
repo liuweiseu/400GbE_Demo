@@ -24,8 +24,8 @@ void print_recv_helper()
     printf("Usage:\n");
     printf("    RecvDemo     Receiver Demo at 400Gbps\n\n");
     printf("Options:\n");
-    printf("    -h, print out the helper information.\n");
     printf("    -d, NIC dev number. '0' means mlx5_0.\n");
+    printf("    --nsge, number of sge. By default, nsge = 1.\n");
     printf("    --smac, source MAC address.\n");
     printf("    --dmac, destination MAC address.\n");
     printf("    --sip, source IP address.\n");
@@ -60,6 +60,9 @@ int main(int argc, char *argv[]){
     
     struct ibv_utils_res ibv_res;
     memset(&ibv_res, 0, sizeof(struct ibv_utils_res));
+    // get values from args
+    ibv_res.recv_nsge = args.nsge;
+    ibv_res.send_nsge = args.nsge;
     printf("Start to recv...\n");
     // get ib device list
     num_dev = get_ib_devices();

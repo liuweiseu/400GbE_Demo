@@ -28,7 +28,6 @@ void print_send_helper()
     printf("Usage:\n");
     printf("    SendDemo     Sender Demo at 400Gbps\n\n");
     printf("Options:\n");
-    printf("    -h, print out the helper information.\n");
     printf("    -d, NIC dev number. '0' means mlx5_0.\n");
     printf("    -n, the packet number in one group. By default, n = 512.\n");
     printf("    -N, the number of packet groups. By default, N = 1.\n");
@@ -55,12 +54,13 @@ int main(int argc, char *argv[])
         return 0;
     }
     print_send_info(&args);
-    
-    // get values from args
-    wr_num = args.npkt_per_grp;
 
     struct ibv_utils_res ibv_res;
     memset(&ibv_res, 0, sizeof(struct ibv_utils_res));
+    // get values from args
+    wr_num = args.npkt_per_grp;
+    ibv_res.recv_nsge = 1;
+    ibv_res.send_nsge = 1;
     printf("Start to send...\n");
 
     // get ib device list
