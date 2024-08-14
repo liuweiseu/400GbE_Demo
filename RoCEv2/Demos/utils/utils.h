@@ -40,7 +40,8 @@ struct send_args {
     struct pkt_info *pkt_info;
     uint8_t help_info;
     uint8_t streams;
-    uint32_t pkt_num;
+    uint32_t npkt_per_grp;
+    uint32_t npkt_grp;
     uint8_t inf;
 };
 

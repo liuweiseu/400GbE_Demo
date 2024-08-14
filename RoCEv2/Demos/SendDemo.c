@@ -20,7 +20,6 @@ uint64_t ns_elapsed;
 struct timespec ts_start;
 struct timespec ts_now;
 
-#define WR_NUM 512
 /*
 Print out help information.
 */
@@ -31,7 +30,8 @@ void print_send_helper()
     printf("Options:\n");
     printf("    -h, print out the helper information.\n");
     printf("    -d, NIC dev number. '0' means mlx5_0.\n");
-    printf("    -N, the packet number to be sent out is Nx512.\n");
+    printf("    -n, the packet number in one group. By default, n = 512.\n");
+    printf("    -N, the number of packet groups. By default, N = 1.\n");
     printf("    --smac, source MAC address.\n");
     printf("    --dmac, destination MAC address.\n");
     printf("    --sip, source IP address.\n");
@@ -45,7 +45,7 @@ void print_send_helper()
 
 int main(int argc, char *argv[])
 {
-    int num_dev = 0;
+    int num_dev = 0, wr_num = 0;
     struct send_args args;
     init_send_args(&args);
     parse_send_args(&args, argc, argv);
@@ -55,6 +55,9 @@ int main(int argc, char *argv[])
         return 0;
     }
     print_send_info(&args);
+    
+    // get values from args
+    wr_num = args.npkt_per_grp;
 
     struct ibv_utils_res ibv_res;
     memset(&ibv_res, 0, sizeof(struct ibv_utils_res));
@@ -74,7 +77,7 @@ int main(int argc, char *argv[])
     printf("Open IB device successfully.\n");
 
     // only implement recv here
-    ret = create_ib_res(&ibv_res, WR_NUM, 0);
+    ret = create_ib_res(&ibv_res, wr_num, 0);
     if (ret < 0) {
         printf("Failed to create ib resources.\n");
         return -2;
@@ -97,7 +100,7 @@ int main(int argc, char *argv[])
 
     // create pkts
     void *buf;
-    uint32_t buf_size = PKT_LEN * WR_NUM * MAX_SGE;
+    uint32_t buf_size = PKT_LEN * wr_num * MAX_SGE;
     buf = malloc(buf_size);
     if (buf == NULL) {
         printf("Failed to allocate memory.\n");
@@ -105,7 +108,7 @@ int main(int argc, char *argv[])
     }
     // generate pkts
     int i = 0;
-    while(i < WR_NUM * MAX_SGE)
+    while(i < wr_num * MAX_SGE)
     {
         for(int j = 0; j < args.streams; j++)
         {
@@ -120,7 +123,7 @@ int main(int argc, char *argv[])
             set_udp_dst_port(pkt, args.pkt_info[j].dst_port);
             set_payload(pkt, (uint8_t *)"Hello, world!", 13);
             i++;
-            if(i >= WR_NUM * MAX_SGE)break;
+            if(i >= wr_num * MAX_SGE)break;
         }
     }
 
@@ -137,7 +140,7 @@ int main(int argc, char *argv[])
 
     // send pkts
     i = 0;
-    while((i < args.pkt_num) || args.inf) 
+    while((i < args.npkt_grp) || args.inf) 
     {
         ret = ib_send(&ibv_res);
         if (ret < 0) {
