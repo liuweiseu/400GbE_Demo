@@ -40,6 +40,7 @@ struct send_args {
     struct pkt_info *pkt_info;
     uint8_t help_info;
     uint8_t streams;
+    uint32_t pkt_num;
 };
 
 void init_recv_args(struct recv_args *args);

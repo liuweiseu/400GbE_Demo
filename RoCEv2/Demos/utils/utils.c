@@ -148,6 +148,8 @@ void init_send_args(struct send_args *args)
     // by default, send one stream
     args->streams = 1;
     args->pkt_info = (struct pkt_info *)malloc(args->streams * sizeof(struct pkt_info));
+    // by default, send one group of packet
+    args->pkt_num = 1;
 }
 
 /*
@@ -173,11 +175,14 @@ void parse_send_args(struct send_args *args, int argc, char *argv[])
     while(1)
     {
         //c = getopt_long(argc, argv, "S:D:s:d:p:P:gh", long_options, &long_option_index);
-        c = getopt_long(argc, argv, "d:g:h", long_options, &long_option_index);
+        c = getopt_long(argc, argv, "d:g:N:h", long_options, &long_option_index);
         switch (c)
         {
             case 'd':
                 sscanf(optarg, "%hhd", &args->device_id);
+                break;
+            case 'N':
+                sscanf(optarg, "%d", &args->pkt_num);
                 break;
             case 256:
                 tmp_optarg = args->streams > 1 ? strtok(optarg, ",") : optarg;

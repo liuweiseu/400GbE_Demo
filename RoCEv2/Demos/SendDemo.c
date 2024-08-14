@@ -20,6 +20,7 @@ uint64_t ns_elapsed;
 struct timespec ts_start;
 struct timespec ts_now;
 
+#define WR_NUM 512
 /*
 Print out help information.
 */
@@ -37,6 +38,8 @@ void print_send_helper()
     printf("    --sport, source port number.\n");
     printf("    --dport, destination port number.\n");
     printf("    --streams, number of streams.\n");
+    printf("    -N, the packet number to be sent out is Nx512.\n");
+    printf("    --help, print out the helper information.\n");
 }
 
 int main(int argc, char *argv[])
@@ -70,7 +73,7 @@ int main(int argc, char *argv[])
     printf("Open IB device successfully.\n");
 
     // only implement recv here
-    ret = create_ib_res(&ibv_res, 512, 0);
+    ret = create_ib_res(&ibv_res, WR_NUM, 0);
     if (ret < 0) {
         printf("Failed to create ib resources.\n");
         return -2;
@@ -93,24 +96,31 @@ int main(int argc, char *argv[])
 
     // create pkts
     void *buf;
-    uint32_t buf_size = PKT_LEN * 512 * MAX_SGE;
+    uint32_t buf_size = PKT_LEN * WR_NUM * MAX_SGE;
     buf = malloc(buf_size);
     if (buf == NULL) {
         printf("Failed to allocate memory.\n");
         return -4;
     }
     // generate pkts
-    for(int i = 0; i < 512 * MAX_SGE; i++) {
-        struct udp_pkt *pkt = (struct udp_pkt *)((uint8_t *)buf + i * PKT_LEN);
-        set_dest_mac(pkt, args.pkt_info[0].dst_mac);
-        set_src_mac(pkt, args.pkt_info[0].src_mac);
-        set_eth_type(pkt, (uint8_t *)"\x08\x00");
-        set_ip_hdrs(pkt, (uint8_t *)"\x45\x00\x00\x1f\x54\x00\x00\x00\x40\x11\xaf\xb6");
-        set_src_ip(pkt, (uint8_t *)(&args.pkt_info[0].src_ip));
-        set_dst_ip(pkt, (uint8_t *)(&args.pkt_info[0].dst_ip));
-        set_udp_src_port(pkt, args.pkt_info[0].src_port);
-        set_udp_dst_port(pkt, args.pkt_info[0].dst_port);
-        set_payload(pkt, (uint8_t *)"Hello, world!", 13);
+    int i = 0;
+    while(i < WR_NUM * MAX_SGE)
+    {
+        for(int j = 0; j < args.streams; j++)
+        {
+            struct udp_pkt *pkt = (struct udp_pkt *)((uint8_t *)buf + i * PKT_LEN);
+            set_dest_mac(pkt, args.pkt_info[j].dst_mac);
+            set_src_mac(pkt, args.pkt_info[j].src_mac);
+            set_eth_type(pkt, (uint8_t *)"\x08\x00");
+            set_ip_hdrs(pkt, (uint8_t *)"\x45\x00\x00\x1f\x54\x00\x00\x00\x40\x11\xaf\xb6");
+            set_src_ip(pkt, (uint8_t *)(&args.pkt_info[j].src_ip));
+            set_dst_ip(pkt, (uint8_t *)(&args.pkt_info[j].dst_ip));
+            set_udp_src_port(pkt, args.pkt_info[j].src_port);
+            set_udp_dst_port(pkt, args.pkt_info[j].dst_port);
+            set_payload(pkt, (uint8_t *)"Hello, world!", 13);
+            i++;
+            if(i >= WR_NUM * MAX_SGE)break;
+        }
     }
 
     // register memory
@@ -125,15 +135,15 @@ int main(int argc, char *argv[])
     }
 
     // send pkts
-    ret = ib_send(&ibv_res);
-    if (ret < 0) {
-        printf("Failed to send pkts.\n");
-        return -6;
-    }
-    else
+    for(i = 0; i < args.pkt_num; i++)
     {
-        printf("Send pkts successfully.\n");
+        ret = ib_send(&ibv_res);
+        if (ret < 0) {
+            printf("Failed to send pkts.\n");
+            return -6;
+        }
     }
+    printf("Send pkts successfully.\n");
     free(buf);
     free_send_args(&args);
     destroy_ib_res(&ibv_res);

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <netinet/in.h>
 
 #include "ibv_utils.h"
 
@@ -300,8 +301,8 @@ int create_flow(struct ibv_utils_res *ib_res, struct ibv_pkt_info *pkt_info)
     //flow_attr.spec_eth.val.ether_type = 0x0800;
     flow_attr.spec_ipv4.val.dst_ip = pkt_info->dst_ip;
     flow_attr.spec_ipv4.val.src_ip = pkt_info->src_ip;
-    flow_attr.spec_udp.val.dst_port = pkt_info->dst_port;
-    flow_attr.spec_udp.val.src_port = pkt_info->src_port;
+    flow_attr.spec_udp.val.dst_port = htons(pkt_info->dst_port);
+    flow_attr.spec_udp.val.src_port = htons(pkt_info->src_port);
 
     // create flow
     struct ibv_flow *flow;
@@ -318,7 +319,6 @@ int ib_send(struct ibv_utils_res *ibv_res)
 {
     int i = 0, state = 0, ns = 0, msc = 0;
     // TODO: implement the ib_send function
-    printf("send_wr_num: %d\n", ibv_res->send_wr_num);
     memset(ibv_res->send_wr, 0, sizeof(struct ibv_send_wr));
     for(i = 0; i < ibv_res->send_wr_num; i++)
     {
