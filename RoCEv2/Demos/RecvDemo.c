@@ -34,6 +34,7 @@ void print_recv_helper()
     printf("    --dport, destination port number.\n");
     printf("    --gpu, allocate memory on GPU. the memory is allocated on the host by default.\n");
     printf("    --disable-recv, disable recv.\n");
+    printf("    --help, -h,  print out the helper information.\n");
 }
 
 

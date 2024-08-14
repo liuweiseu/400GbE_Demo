@@ -18,7 +18,7 @@ The code is used for 400G Ethernet tests.
     ```
 3. clone the repo
     ```
-    git clone -b general-dev-branch https://github.com/liuweiseu/400GbE_Demo.git
+    git clone https://github.com/liuweiseu/400GbE_Demo.git
     ```
 3. go to RoCEv2 directory, and create a build directory
     ```
@@ -36,7 +36,7 @@ The code is used for 400G Ethernet tests.
     ```
     ~$ RecvDemo -h
     Usage:
-        RecvDemo     Receiver demo at 400Gbps
+    RecvDemo     Receiver Demo at 400Gbps
 
     Options:
         -h, print out the helper information.
@@ -49,10 +49,11 @@ The code is used for 400G Ethernet tests.
         --dport, destination port number.
         --gpu, allocate memory on GPU. the memory is allocated on the host by default.
         --disable-recv, disable recv.
+        --help, -h,  print out the helper information.
 
     ~$ SendDemo -h
     Usage:
-        RecvDemo     Receiver demo at 400Gbps
+    SendDemo     Sender Demo at 400Gbps
 
     Options:
         -h, print out the helper information.
@@ -63,6 +64,9 @@ The code is used for 400G Ethernet tests.
         --dip, destination IP address.
         --sport, source port number.
         --dport, destination port number.
+        --streams, number of streams.
+        -N, the packet number to be sent out is Nx512.
+        --help,-h print out the helper information.
     ```
 ## Scripts
 There are several useful scripts in `scripts` directory. 

@@ -11,24 +11,8 @@
 #define WR_N 32768
 #define POLL_N 16
 
-struct ibv_context *ib_global_context[MAX_DEV_NUM];
-struct ibv_pd *ib_global_pd[MAX_DEV_NUM];
-struct ibv_cq *ib_global_cq[MAX_DEV_NUM];
-struct ibv_qp *ib_global_qp[MAX_DEV_NUM];
-struct ibv_mr *ib_global_mr[MAX_DEV_NUM];
 struct ibv_device **ib_global_devs;
 int num_ib_devices;
-int send_global_wr_num[MAX_DEV_NUM];
-int recv_global_wr_num[MAX_DEV_NUM];
-
-// This is a gloabl variable to record the device id
-// In the ib_send and ib_recv function, the device id will be used
-int global_device_id = 0;
-struct ibv_qp *global_qp = NULL;
-struct ibv_cq *global_cq = NULL;
-struct ibv_wc global_wc[WR_N];
-struct ibv_sge global_sg_entry[WR_N];
-struct ibv_recv_wr global_wr, *global_bad_wr;
 
 int send_completed = WR_N;
 int recv_completed = WR_N;
