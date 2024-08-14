@@ -134,6 +134,34 @@ int create_ib_res(struct ibv_utils_res *ib_res, int send_wr_num, int recv_wr_num
         ibv_utils_error("Couldn't create QP.\n");
         return -4;
     }
+
+    // allocate memory for sge, send_wr, recv_wr, wc
+    ib_res->sge = (struct ibv_sge *)malloc(wr_num * sizeof(struct ibv_sge)*MAX_SGE);
+    if(!ib_res->sge){
+        ibv_utils_error("Failed to allocate memory for sge.\n");
+        return -5;
+    }
+    if(ib_res->send_wr_num > 0)
+    {
+        ib_res->send_wr = (struct ibv_send_wr *)malloc(ib_res->send_wr_num * sizeof(struct ibv_send_wr));
+        if(!ib_res->send_wr){
+            ibv_utils_error("Failed to allocate memory for send_wr.\n");
+            return -6;
+        }
+    }
+    if(ib_res->recv_wr_num > 0)
+    {
+        ib_res->recv_wr = (struct ibv_recv_wr *)malloc(ib_res->recv_wr_num * sizeof(struct ibv_recv_wr));
+        if(!ib_res->recv_wr){
+            ibv_utils_error("Failed to allocate memory for recv_wr.\n");
+            return -7;
+        }
+    }
+    ib_res->wc = (struct ibv_wc *)malloc(wr_num * sizeof(struct ibv_wc));
+    if(!ib_res->wc){
+        ibv_utils_error("Failed to allocate memory for wc.\n");
+        return -8;
+    }
     return 0;
 }
 
@@ -195,10 +223,11 @@ int register_memory(struct ibv_utils_res *ib_res, void *addr, size_t total_lengt
     // create sge
     // TODO: the number of sge should be set according to the user's requirement
     int wr_num = total_length / chunck_size;
-    ib_res->sge = (struct ibv_sge *)malloc(wr_num * sizeof(struct ibv_sge)*MAX_SGE);
-    ib_res->send_wr = (struct ibv_send_wr *)malloc(1 * sizeof(struct ibv_send_wr));
-    ib_res->recv_wr = (struct ibv_recv_wr *)malloc(1 * sizeof(struct ibv_recv_wr));
-    ib_res->wc = (struct ibv_wc *)malloc(wr_num * sizeof(struct ibv_wc));
+    if((wr_num != ib_res->send_wr_num) && (wr_num != ib_res->recv_wr_num))
+    {
+        ibv_utils_error("The number of wr is not equal to the number of sge.\n");
+        return -2;
+    }
     for(int i=0; i< wr_num * MAX_SGE; i++)
     {
         ib_res->sge[i].addr = (uint64_t)(addr+i*chunck_size);
@@ -304,20 +333,23 @@ int ib_send(struct ibv_utils_res *ibv_res)
     int i = 0, state = 0, ns = 0, msc = 0;
     // TODO: implement the ib_send function
     memset(ibv_res->send_wr, 0, sizeof(struct ibv_send_wr));
-    for(i = 0; i < ibv_res->send_wr_num; i++)
+    for(int i = 0; i < ibv_res->send_wr_num; i++)
     {
-        ibv_res->send_wr->wr_id = i;
-        ibv_res->send_wr->sg_list = &ibv_res->sge[i*MAX_SGE];
-        ibv_res->send_wr->num_sge = MAX_SGE;
-        ibv_res->send_wr->next = NULL;
-        ibv_res->send_wr->opcode = IBV_WR_SEND;
-        ibv_res->send_wr->send_flags |= IBV_SEND_SIGNALED;
-        state = ibv_post_send(ibv_res->qp, ibv_res->send_wr, &ibv_res->bad_send_wr);
-        if(state < 0)
-        {
-            ibv_utils_error("Failed to post send.\n");
-            return -1;
-        }
+        ibv_res->send_wr[i].wr_id = i;
+        ibv_res->send_wr[i].sg_list = &ibv_res->sge[i*MAX_SGE];
+        ibv_res->send_wr[i].num_sge = MAX_SGE;
+        if(i == ibv_res->send_wr_num - 1)
+            ibv_res->send_wr[i].next = NULL;
+        else
+            ibv_res->send_wr[i].next = &ibv_res->send_wr[i+1];
+        ibv_res->send_wr[i].opcode = IBV_WR_SEND;
+        ibv_res->send_wr[i].send_flags |= IBV_SEND_SIGNALED;
+    }
+    state = ibv_post_send(ibv_res->qp, ibv_res->send_wr, &ibv_res->bad_send_wr);
+    if(state < 0)
+    {
+        ibv_utils_error("Failed to post send.\n");
+        return -1;
     }
     while(ns < ibv_res->send_wr_num)
     {
@@ -357,8 +389,8 @@ int destroy_ib_res(struct ibv_utils_res *ib_res)
     struct ibv_qp *qp = ib_res->qp;
     ibv_destroy_qp(qp);
     free(ib_res->sge);
-    free(ib_res->send_wr);
-    free(ib_res->recv_wr);
+    if(ib_res->send_wr_num > 0)free(ib_res->send_wr);
+    if(ib_res->recv_wr_num > 0)free(ib_res->recv_wr);
     free(ib_res->wc);
     return 0;
 }
