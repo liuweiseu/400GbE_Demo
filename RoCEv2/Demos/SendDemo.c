@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 
     // create pkts
     void *buf;
-    uint32_t buf_size = PKT_LEN * wr_num * MAX_SGE;
+    uint32_t buf_size = PKT_LEN * wr_num * ibv_res.send_nsge;
     buf = malloc(buf_size);
     if (buf == NULL) {
         printf("Failed to allocate memory.\n");
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     }
     // generate pkts
     int i = 0;
-    while(i < wr_num * MAX_SGE)
+    while(i < wr_num * ibv_res.send_wr_num)
     {
         for(int j = 0; j < args.streams; j++)
         {
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
             set_udp_dst_port(pkt, args.pkt_info[j].dst_port);
             set_payload(pkt, (uint8_t *)"Hello, world!", 13);
             i++;
-            if(i >= wr_num * MAX_SGE)break;
+            if(i >= wr_num * ibv_res.send_nsge)break;
         }
     }
 

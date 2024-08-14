@@ -135,6 +135,7 @@ void print_recv_info(struct recv_args *args){
     if(args->use_gpu)
         printf("    use_gpu: %d, gpu_id: %d\n", args->use_gpu, args->gpu_id);
     printf("    disable_recv: %d\n", args->disable_recv);
+    printf("    nsge: %d\n", args->nsge);
     printf("**********************************************\n");
 }
 

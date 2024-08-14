@@ -100,7 +100,7 @@ int main(int argc, char *argv[]){
 
     // register memory;
     void *buf;
-    uint32_t buf_size = PKT_LEN * 512 * MAX_SGE;
+    uint32_t buf_size = PKT_LEN * 512 * ibv_res.recv_nsge;
     if (args.use_gpu) {
         int state;
         unsigned int flag = 1;

@@ -89,9 +89,20 @@ create ib resources and so on, including pd, cq, qp
 int create_ib_res(struct ibv_utils_res *ib_res, int send_wr_num, int recv_wr_num)
 {
     ibv_utils_warn("Creating IB resources.");
+        // Initialize the variables in the struct
+    ibv_utils_warn("Initializing IB structure.");
+    // by default, the variables are set to 0
+    // if the user doesn't set the number of sge, set it to 1
+    if(ib_res->recv_nsge == 0)
+    {
+        ib_res->recv_nsge = 1;
+    }
+    if(ib_res->send_nsge == 0)
+    {
+        ib_res->send_nsge = 1;
+    }
     // save the wr number to global variable
     int wr_num = send_wr_num > recv_wr_num ? send_wr_num : recv_wr_num;
-    int max_sge = ib_res->send_nsge > ib_res->recv_nsge ? ib_res->send_nsge : ib_res->recv_nsge;
     ib_res->send_wr_num = send_wr_num;
     ib_res->recv_wr_num = recv_wr_num;
     // create pd
@@ -137,6 +148,7 @@ int create_ib_res(struct ibv_utils_res *ib_res, int send_wr_num, int recv_wr_num
     }
 
     // allocate memory for sge, send_wr, recv_wr, wc
+    int max_sge = ib_res->send_nsge > ib_res->recv_nsge ? ib_res->send_nsge : ib_res->recv_nsge;
     ib_res->sge = (struct ibv_sge *)malloc(wr_num * sizeof(struct ibv_sge)*max_sge);
     if(!ib_res->sge){
         ibv_utils_error("Failed to allocate memory for sge.\n");
@@ -173,18 +185,6 @@ int init_ib_res(struct ibv_utils_res *ib_res)
 {
     ibv_utils_warn("Initializing IB resources.");
     int state;
-    // Initialize the variables in the struct
-    ibv_utils_warn("Initializing IB structure.");
-    // by default, the variables are set to 0
-    // if the user doesn't set the number of sge, set it to 1
-    if(ib_res->recv_nsge == 0)
-    {
-        ib_res->recv_nsge = 1;
-    }
-    if(ib_res->send_nsge == 0)
-    {
-        ib_res->send_nsge = 1;
-    }
     // Initialize the QP
     struct ibv_qp_attr qp_attr;
     int qp_flags;
@@ -235,13 +235,14 @@ int register_memory(struct ibv_utils_res *ib_res, void *addr, size_t total_lengt
     }
     // create sge
     // TODO: the number of sge should be set according to the user's requirement
-    int wr_num = total_length / chunck_size;
+    // TODO: Do we have to set the send_wr_num and recv_wr_num to be the same??
+    int max_sge = ib_res->send_nsge > ib_res->recv_nsge ? ib_res->send_nsge : ib_res->recv_nsge;
+    int wr_num = total_length / chunck_size / max_sge;
     if((wr_num != ib_res->send_wr_num) && (wr_num != ib_res->recv_wr_num))
     {
         ibv_utils_error("The number of wr is not equal to the number of sge.\n");
         return -2;
     }
-    int max_sge = ib_res->send_nsge > ib_res->recv_nsge ? ib_res->send_nsge : ib_res->recv_nsge;
     for(int i=0; i< wr_num * max_sge; i++)
     {
         ib_res->sge[i].addr = (uint64_t)(addr+i*chunck_size);

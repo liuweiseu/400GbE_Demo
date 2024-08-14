@@ -1,10 +1,6 @@
 #ifndef __IBV_UTILS_H__
 #define __IBV_UTILS_H__
 
-// define the maximum number of ib devices
-// a PD, CQ, QP will be created for each device
-#define MAX_DEV_NUM 2
-#define MAX_SGE 1
 // define a structure for packet information
 struct ibv_pkt_info {
     uint8_t src_mac[6];
