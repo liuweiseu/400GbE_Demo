@@ -8,7 +8,7 @@
 
 #include "ibv_utils.h"
 
-#define WR_N 32768
+#define WR_N 512
 #define POLL_N 16
 
 struct ibv_device **ib_global_devs;
@@ -360,18 +360,28 @@ int ib_send(struct ibv_utils_res *ibv_res)
 }
 
 int ib_recv(struct ibv_utils_res *ibv_res)
-{  
+{     
+    uint64_t j = 0, k = 0;
+    int i = 0;
     if(recv_completed > 0)
     {
-        for(int i = 0; i < recv_completed; i++)
-        {
-            ibv_res->recv_wr->wr_id = ibv_res->wc[i].wr_id;
-            ibv_res->recv_wr->sg_list = &ibv_res->sge[ibv_res->wc[i].wr_id*MAX_SGE];
-            ibv_res->recv_wr->num_sge = MAX_SGE;
-            ibv_res->recv_wr->next = NULL;
-            ibv_post_recv(ibv_res->qp, ibv_res->recv_wr, &ibv_res->bad_recv_wr);
-        }   
+        for(i = 0; i < recv_completed; i++)
+        {   
+            j = ibv_res->wc[j].wr_id;
+            ibv_res->recv_wr[j].wr_id = j;
+            ibv_res->recv_wr[j].sg_list = &ibv_res->sge[j*MAX_SGE];
+            ibv_res->recv_wr[j].num_sge = MAX_SGE;
+            if(i == recv_completed - 1)
+                ibv_res->recv_wr[i].next = NULL;
+            else
+            {
+                k = ibv_res->wc[i+1].wr_id;
+                ibv_res->recv_wr[j].next = &ibv_res->recv_wr[k];
+            }
+        }  
+        ibv_post_recv(ibv_res->qp, ibv_res->recv_wr, &ibv_res->bad_recv_wr); 
     }
+    
     recv_completed = ibv_poll_cq(ibv_res->cq, POLL_N, ibv_res->wc);
     
     return recv_completed;

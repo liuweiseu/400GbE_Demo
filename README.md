@@ -2,7 +2,7 @@
 The code is used for 400G Ethernet tests.
 
 ## How to use the code 
-1. OS requirement
+1. OS requirement  
     Currently, the code is only tested on Ubuntu22.04.
     ```
     ~$ sudo lsb_release -a
@@ -58,6 +58,7 @@ The code is used for 400G Ethernet tests.
     Options:
         -h, print out the helper information.
         -d, NIC dev number. '0' means mlx5_0.
+        -N, the packet number to be sent out is Nx512.
         --smac, source MAC address.
         --dmac, destination MAC address.
         --sip, source IP address.
@@ -65,8 +66,8 @@ The code is used for 400G Ethernet tests.
         --sport, source port number.
         --dport, destination port number.
         --streams, number of streams.
-        -N, the packet number to be sent out is Nx512.
-        --help,-h print out the helper information.
+        --inf, keep sending packets.
+        --help, -h,  print out the helper information.
     ```
 ## Scripts
 There are several useful scripts in `scripts` directory. 
