@@ -70,3 +70,6 @@ The code is used for 400G Ethernet tests.
     ```
 ## Scripts
 There are several useful scripts in `scripts` directory. 
+1. [config](https://github.com/liuweiseu/400GbE_Demo/tree/master/scripts/config): These are scripts for the NIC, GPU, CPU configuration;
+2. [Recv](https://github.com/liuweiseu/400GbE_Demo/tree/master/scripts/Recv)  : The scripts show some examples about `RecvDemo`;
+3. [Send](https://github.com/liuweiseu/400GbE_Demo/tree/master/scripts/Send)  : The scripts show some examples about `SendDemo`.

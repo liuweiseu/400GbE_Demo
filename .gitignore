@@ -2,4 +2,6 @@ RoCEv2/build
 RoCEv2/ibv_utils/build
 RoCEv2/Demos/build
 RoCEv2/Demos/*.log
+scripts/Recv/*.log
+scripts/Send/*.log
 .vscode
