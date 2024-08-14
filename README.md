@@ -67,6 +67,8 @@ The code is used for 400G Ethernet tests.
         --dport, destination port number.
         --streams, number of streams.
         --inf, keep sending packets.
+        --npkt_row. the number of the same packets sent out.
+                    By default, npkt_row = 1, which means different packets are sent out one by one.
         --help, -h,  print out the helper information.
     ```
 ## Scripts
