@@ -4,4 +4,5 @@ RoCEv2/Demos/build
 RoCEv2/Demos/*.log
 scripts/Recv/*.log
 scripts/Send/*.log
+RoCEv2/ibv_utils/lib/*
 .vscode
