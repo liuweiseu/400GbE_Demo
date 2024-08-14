@@ -147,6 +147,7 @@ void init_send_args(struct send_args *args)
     memset(args, 0, sizeof(struct send_args));
     // by default, send one stream
     args->streams = 1;
+    args->pkt_info = (struct pkt_info *)malloc(args->streams * sizeof(struct pkt_info));
 }
 
 /*
@@ -168,6 +169,7 @@ void parse_send_args(struct send_args *args, int argc, char *argv[])
         {.name = "help", .has_arg = no_argument, .flag = NULL, .val = 'h'},
         {0, 0, 0, 0}
     };
+    char *tmp_optarg;
     while(1)
     {
         //c = getopt_long(argc, argv, "S:D:s:d:p:P:gh", long_options, &long_option_index);
@@ -178,68 +180,71 @@ void parse_send_args(struct send_args *args, int argc, char *argv[])
                 sscanf(optarg, "%hhd", &args->device_id);
                 break;
             case 256:
+                tmp_optarg = args->streams > 1 ? strtok(optarg, ",") : optarg;
                 for(int i = 0; i < args->streams; i++)
-                {
-                    sscanf(optarg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", 
+                {   
+                    sscanf(tmp_optarg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", 
                                 &args->pkt_info[i].src_mac[0], 
                                 &args->pkt_info[i].src_mac[1],
                                 &args->pkt_info[i].src_mac[2],
                                 &args->pkt_info[i].src_mac[3],
                                 &args->pkt_info[i].src_mac[4],
                                 &args->pkt_info[i].src_mac[5]);
-                    // skip ","
-                    optarg = strtok(NULL, ",");
+                    if(args->streams > 1)tmp_optarg = strtok(NULL, ",");
                 }
                 break;
             case 257:
+                tmp_optarg = args->streams > 1 ? strtok(optarg, ",") : optarg;
                 for(int i = 0; i < args->streams; i++)
                 {
-                    sscanf(optarg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+                    sscanf(tmp_optarg, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
                                 &args->pkt_info[i].dst_mac[0],
                                 &args->pkt_info[i].dst_mac[1],
                                 &args->pkt_info[i].dst_mac[2],
                                 &args->pkt_info[i].dst_mac[3],
                                 &args->pkt_info[i].dst_mac[4],
                                 &args->pkt_info[i].dst_mac[5]);
-                    // skip ","
-                    optarg = strtok(NULL, ",");
+                    if(args->streams > 1)tmp_optarg = strtok(NULL, ",");
                 }
                 break;
             case 258: 
+                tmp_optarg = args->streams > 1 ? strtok(optarg, ",") : optarg;
                 for(int i = 0; i < args->streams; i++)
                 {
-                    sscanf(optarg, "%hhd.%hhd.%hhd.%hhd", &tmp[0], &tmp[1], &tmp[2], &tmp[3]);
+                    sscanf(tmp_optarg, "%hhd.%hhd.%hhd.%hhd", &tmp[0], &tmp[1], &tmp[2], &tmp[3]);
                     args->pkt_info[i].src_ip = (tmp[3] << 24) | (tmp[2] << 16) | (tmp[1] << 8) | tmp[0];
-                    // skip ","
-                    optarg = strtok(NULL, ",");
+                    if(args->streams > 1)tmp_optarg = strtok(NULL, ",");
                 }
                 break;
             case 259:
+                tmp_optarg = args->streams > 1 ? strtok(optarg, ",") : optarg;
                 for(int i = 0; i < args->streams; i++)
                 {
-                    sscanf(optarg, "%hhd.%hhd.%hhd.%hhd", &tmp[0], &tmp[1], &tmp[2], &tmp[3]);
+                    sscanf(tmp_optarg, "%hhd.%hhd.%hhd.%hhd", &tmp[0], &tmp[1], &tmp[2], &tmp[3]);
                     args->pkt_info[i].dst_ip = (tmp[3] << 24) | (tmp[2] << 16) | (tmp[1] << 8) | tmp[0];
-                    // skip ","
-                    optarg = strtok(NULL, ",");
+                    if(args->streams > 1)tmp_optarg = strtok(NULL, ",");
                 }
                 break;
             case 260:
+                tmp_optarg = args->streams > 1 ? strtok(optarg, ",") : optarg;
                 for(int i = 0; i < args->streams; i++)
                 {
-                    sscanf(optarg, "%hd", &args->pkt_info[i].src_port);
-                    // skip ","
-                    optarg = strtok(NULL, ",");
+                    sscanf(tmp_optarg, "%hd", &args->pkt_info[i].src_port);
+                    if(args->streams > 1)tmp_optarg = strtok(NULL, ",");
                 }
                 break;
             case 261:
+                tmp_optarg = args->streams > 1 ? strtok(optarg, ",") : optarg;
                 for(int i = 0; i < args->streams; i++)
                 {
-                    sscanf(optarg, "%hd", &args->pkt_info[i].dst_port);
-                    // skip ","
-                    optarg = strtok(NULL, ",");
+                    sscanf(tmp_optarg, "%hd", &args->pkt_info[i].dst_port);
+                    if(args->streams > 1)tmp_optarg = strtok(NULL, ",");
                 }
+                break;
             case 262:
                 sscanf(optarg, "%hhd", &args->streams);
+                // free the old pkt_info
+                free(args->pkt_info);
                 args->pkt_info = (struct pkt_info *)malloc(args->streams * sizeof(struct pkt_info));
                 break;
             case 'h':
