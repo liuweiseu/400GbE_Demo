@@ -39,7 +39,7 @@ void print_send_helper()
     printf("    --dport, destination port number.\n");
     printf("    --streams, number of streams.\n");
     printf("    -N, the packet number to be sent out is Nx512.\n");
-    printf("    --help, print out the helper information.\n");
+    printf("    --help, -h,  print out the helper information.\n");
 }
 
 int main(int argc, char *argv[])
