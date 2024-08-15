@@ -170,7 +170,7 @@ int main(int argc, char *argv[]){
 			{
                 bandwidth = MEASURE_BANDWIDTH((total_recv - total_recv_pre) * PKT_LEN, ns_elapsed);
                 total_recv_pre = total_recv;
-				printf("total_recv: %-10d Bandwidth: %5.2f Gbps\n",total_recv, bandwidth);
+				printf("total_recv: %-10d Bandwidth: %6.3f Gbps\n",total_recv, bandwidth);
 			}
 		}
         if(args.disable_recv == 0)msgs_completed = ib_recv(&ibv_res);
