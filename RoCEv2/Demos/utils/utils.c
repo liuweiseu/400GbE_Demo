@@ -150,6 +150,7 @@ void init_send_args(struct send_args *args)
     args->pkt_info = (struct pkt_info *)malloc(args->streams * sizeof(struct pkt_info));
     // by default, send one group of packet
     args->pkt_num = 1;
+    args->inf = 0;
 }
 
 /*
@@ -168,6 +169,7 @@ void parse_send_args(struct send_args *args, int argc, char *argv[])
         {.name = "sport", .has_arg = required_argument, .flag = NULL, .val = 260},
         {.name = "dport", .has_arg = required_argument, .flag = NULL, .val = 261},
         {.name = "streams", .has_arg = required_argument, .flag = NULL, .val = 262},
+        {.name = "inf", .has_arg = no_argument, .flag = NULL, .val = 263},
         {.name = "help", .has_arg = no_argument, .flag = NULL, .val = 'h'},
         {0, 0, 0, 0}
     };
@@ -251,6 +253,9 @@ void parse_send_args(struct send_args *args, int argc, char *argv[])
                 // free the old pkt_info
                 free(args->pkt_info);
                 args->pkt_info = (struct pkt_info *)malloc(args->streams * sizeof(struct pkt_info));
+                break;
+            case 263:
+                args->inf = 1;
                 break;
             case 'h':
                 args->help_info = 1;

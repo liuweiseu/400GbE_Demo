@@ -31,6 +31,7 @@ void print_send_helper()
     printf("Options:\n");
     printf("    -h, print out the helper information.\n");
     printf("    -d, NIC dev number. '0' means mlx5_0.\n");
+    printf("    -N, the packet number to be sent out is Nx512.\n");
     printf("    --smac, source MAC address.\n");
     printf("    --dmac, destination MAC address.\n");
     printf("    --sip, source IP address.\n");
@@ -38,7 +39,7 @@ void print_send_helper()
     printf("    --sport, source port number.\n");
     printf("    --dport, destination port number.\n");
     printf("    --streams, number of streams.\n");
-    printf("    -N, the packet number to be sent out is Nx512.\n");
+    printf("    --inf, keep sending packets.\n");
     printf("    --help, -h,  print out the helper information.\n");
 }
 
@@ -135,13 +136,15 @@ int main(int argc, char *argv[])
     }
 
     // send pkts
-    for(i = 0; i < args.pkt_num; i++)
+    i = 0;
+    while((i < args.pkt_num) || args.inf) 
     {
         ret = ib_send(&ibv_res);
         if (ret < 0) {
             printf("Failed to send pkts.\n");
             return -6;
         }
+        i++;
     }
     printf("Send pkts successfully.\n");
     free(buf);
