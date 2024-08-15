@@ -8,6 +8,7 @@ find_package(CUDA REQUIRED)
 # set the executable name
 set(EXECUTABLE_RECV RecvDemo)
 set(EXECUTABLE_SEND SendDemo)
+set(EXECUTABLE_RNICINFO RNICInfo)
 
 # set compiler
 set(CMAKE_C_COMPILER "nvcc")
@@ -16,9 +17,9 @@ set(IBV_UTILS_PATH ../ibv_utils)
 set(PKT_GEN_PATH pkt_gen)
 set(UTILS_PATH utils)
 # set source files
-#aux_source_directory(. SRC)
 set(RECV_SRC RecvDemo.c)
 set(SEND_SRC SendDemo.c)
+set(RNICINFO_SRC RNICInfo.c)
 aux_source_directory(${UTILS_PATH} UTILS_SRC)
 aux_source_directory(${PKT_GEN_PATH} PKT_GEN_SRC)
 # include ibv_utils header files
@@ -36,6 +37,8 @@ add_compile_options(-arch=sm_86)
 # add executable
 cuda_add_executable(${EXECUTABLE_RECV} ${RECV_SRC} ${UTILS_SRC})
 cuda_add_executable(${EXECUTABLE_SEND} ${SEND_SRC} ${UTILS_SRC} ${PKT_GEN_SRC})
+cuda_add_executable(${EXECUTABLE_RNICINFO} ${RNICINFO_SRC})
 # install executable
 install(TARGETS ${EXECUTABLE_RECV} DESTINATION /usr/local/bin)
 install(TARGETS ${EXECUTABLE_SEND} DESTINATION /usr/local/bin)
+install(TARGETS ${EXECUTABLE_RNICINFO} DESTINATION /usr/local/bin)

@@ -70,6 +70,20 @@ The code is used for 400G Ethernet tests.
         --npkt_row. the number of the same packets sent out.
                     By default, npkt_row = 1, which means different packets are sent out one by one.
         --help, -h,  print out the helper information.
+    
+    ~$ RNICInfo -h
+    Usage:
+        NICInfo     Print out NIC information.
+
+    Options:
+        -d, NIC dev number. '0' means mlx5_0.
+        --help, -h,  print out the helper information.
+    ```
+**Note:** 
+1. You have to run `RecvDemo` and `SendDemo` as `root`. 
+2. Because the `libibv_utils.so` prints out some info, it's recommended to redirect `stderr` to a file like this, :
+    ```
+    # RecvDemo xxx 2>> ibv-info.log
     ```
 ## Scripts
 There are several useful scripts in `scripts` directory. 
