@@ -149,7 +149,9 @@ void init_send_args(struct send_args *args)
     args->streams = 1;
     args->pkt_info = (struct pkt_info *)malloc(args->streams * sizeof(struct pkt_info));
     // by default, send one group of packet
-    args->pkt_num = 1;
+    args->npkt_grp = 1;
+    // by default, send 512 packets per group
+    args->npkt_per_grp = 512;
     args->inf = 0;
 }
 
@@ -177,14 +179,17 @@ void parse_send_args(struct send_args *args, int argc, char *argv[])
     while(1)
     {
         //c = getopt_long(argc, argv, "S:D:s:d:p:P:gh", long_options, &long_option_index);
-        c = getopt_long(argc, argv, "d:g:N:h", long_options, &long_option_index);
+        c = getopt_long(argc, argv, "d:g:n:N:h", long_options, &long_option_index);
         switch (c)
         {
             case 'd':
                 sscanf(optarg, "%hhd", &args->device_id);
                 break;
+            case 'n':
+                sscanf(optarg, "%d", &args->npkt_per_grp);
+                break;
             case 'N':
-                sscanf(optarg, "%d", &args->pkt_num);
+                sscanf(optarg, "%d", &args->npkt_grp);
                 break;
             case 256:
                 tmp_optarg = args->streams > 1 ? strtok(optarg, ",") : optarg;
@@ -279,34 +284,41 @@ void print_send_info(struct send_args *args){
     printf("    device_id: %d\n", args->device_id);
     for(int i = 0; i < args->streams; i++)
     {
-        printf("Stream %d:\n", i);
-        printf("    src_mac: %02x:%02x:%02x:%02x:%02x:%02x\n", 
-                    args->pkt_info[i].src_mac[0], 
-                    args->pkt_info[i].src_mac[1], 
-                    args->pkt_info[i].src_mac[2], 
-                    args->pkt_info[i].src_mac[3], 
-                    args->pkt_info[i].src_mac[4], 
-                    args->pkt_info[i].src_mac[5]);
-        printf("    dst_mac: %02x:%02x:%02x:%02x:%02x:%02x\n",
-                    args->pkt_info[i].dst_mac[0],
-                    args->pkt_info[i].dst_mac[1],
-                    args->pkt_info[i].dst_mac[2],
-                    args->pkt_info[i].dst_mac[3],
-                    args->pkt_info[i].dst_mac[4],
-                    args->pkt_info[i].dst_mac[5]);
+        printf("    Stream %d:\n", i);
+        printf("        src_mac: %02x:%02x:%02x:%02x:%02x:%02x\n", 
+                        args->pkt_info[i].src_mac[0], 
+                        args->pkt_info[i].src_mac[1], 
+                        args->pkt_info[i].src_mac[2], 
+                        args->pkt_info[i].src_mac[3], 
+                        args->pkt_info[i].src_mac[4], 
+                        args->pkt_info[i].src_mac[5]);
+        printf("        dst_mac: %02x:%02x:%02x:%02x:%02x:%02x\n",
+                        args->pkt_info[i].dst_mac[0],
+                        args->pkt_info[i].dst_mac[1],
+                        args->pkt_info[i].dst_mac[2],
+                        args->pkt_info[i].dst_mac[3],
+                        args->pkt_info[i].dst_mac[4],
+                        args->pkt_info[i].dst_mac[5]);
         uint8_t tmp[4];
         tmp[3] = (args->pkt_info[i].src_ip >> 24) & 0xff;
         tmp[2] = (args->pkt_info[i].src_ip >> 16) & 0xff;
         tmp[1] = (args->pkt_info[i].src_ip >> 8) & 0xff;
         tmp[0] = args->pkt_info[i].src_ip & 0xff;
-        printf("    src_ip: %d.%d.%d.%d\n", tmp[0], tmp[1], tmp[2], tmp[3]);
+        printf("        src_ip: %d.%d.%d.%d\n", tmp[0], tmp[1], tmp[2], tmp[3]);
         tmp[3] = (args->pkt_info[i].dst_ip >> 24) & 0xff;
         tmp[2] = (args->pkt_info[i].dst_ip >> 16) & 0xff;
         tmp[1] = (args->pkt_info[i].dst_ip >> 8) & 0xff;
         tmp[0] = args->pkt_info[i].dst_ip & 0xff;
-        printf("    dst_ip: %d.%d.%d.%d\n", tmp[0], tmp[1], tmp[2], tmp[3]);
-        printf("    src_port: %d\n", args->pkt_info[i].src_port);
-        printf("    dst_port: %d\n", args->pkt_info[i].dst_port);
+        printf("        dst_ip: %d.%d.%d.%d\n", tmp[0], tmp[1], tmp[2], tmp[3]);
+        printf("        src_port: %d\n", args->pkt_info[i].src_port);
+        printf("        dst_port: %d\n", args->pkt_info[i].dst_port);
+    }
+    if(args->inf)
+        printf("    infinite send...\n");
+    else
+    {
+        printf("    packet number per group: %d\n", args->npkt_per_grp);
+        printf("    packet group number: %d\n", args->npkt_grp);
     }
     printf("**********************************************\n");
 }
