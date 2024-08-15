@@ -39,6 +39,8 @@ void print_send_helper()
     printf("    --dport, destination port number.\n");
     printf("    --streams, number of streams.\n");
     printf("    --inf, keep sending packets.\n");
+    printf("    --npkt_row. the number of the same packets sent out.\n");
+    printf("                By default, npkt_row = 1, which means different packets are sent out one by one.\n");  
     printf("    --help, -h,  print out the helper information.\n");
 }
 
@@ -111,19 +113,22 @@ int main(int argc, char *argv[])
     while(i < wr_num * ibv_res.send_nsge)
     {
         for(int j = 0; j < args.streams; j++)
-        {
-            struct udp_pkt *pkt = (struct udp_pkt *)((uint8_t *)buf + i * PKT_LEN);
-            set_dest_mac(pkt, args.pkt_info[j].dst_mac);
-            set_src_mac(pkt, args.pkt_info[j].src_mac);
-            set_eth_type(pkt, (uint8_t *)"\x08\x00");
-            set_ip_hdrs(pkt, (uint8_t *)"\x45\x00\x00\x1f\x54\x00\x00\x00\x40\x11\xaf\xb6");
-            set_src_ip(pkt, (uint8_t *)(&args.pkt_info[j].src_ip));
-            set_dst_ip(pkt, (uint8_t *)(&args.pkt_info[j].dst_ip));
-            set_udp_src_port(pkt, args.pkt_info[j].src_port);
-            set_udp_dst_port(pkt, args.pkt_info[j].dst_port);
-            set_payload(pkt, (uint8_t *)"Hello, world!", 13);
-            i++;
-            if(i >= wr_num * ibv_res.send_nsge)break;
+        {   
+            for(int k = 0; k < args.npkt_row; k++)
+            {
+                struct udp_pkt *pkt = (struct udp_pkt *)((uint8_t *)buf + i * PKT_LEN);
+                set_dest_mac(pkt, args.pkt_info[j].dst_mac);
+                set_src_mac(pkt, args.pkt_info[j].src_mac);
+                set_eth_type(pkt, (uint8_t *)"\x08\x00");
+                set_ip_hdrs(pkt, (uint8_t *)"\x45\x00\x00\x1f\x54\x00\x00\x00\x40\x11\xaf\xb6");
+                set_src_ip(pkt, (uint8_t *)(&args.pkt_info[j].src_ip));
+                set_dst_ip(pkt, (uint8_t *)(&args.pkt_info[j].dst_ip));
+                set_udp_src_port(pkt, args.pkt_info[j].src_port);
+                set_udp_dst_port(pkt, args.pkt_info[j].dst_port);
+                set_payload(pkt, (uint8_t *)"Hello, world!", 13);
+                i++;
+                if(i >= wr_num * ibv_res.send_nsge)break;
+            }
         }
     }
 

@@ -43,6 +43,7 @@ struct send_args {
     uint8_t streams;
     uint32_t npkt_per_grp;
     uint32_t npkt_grp;
+    uint32_t npkt_row;
     uint8_t inf;
 };
 

@@ -163,6 +163,9 @@ void init_send_args(struct send_args *args)
     args->npkt_grp = 1;
     // by default, send 512 packets per group
     args->npkt_per_grp = 512;
+    // by default, send 1 packet per row
+    args->npkt_row = 1;
+    // by default, not infinite send
     args->inf = 0;
 }
 
@@ -183,6 +186,7 @@ void parse_send_args(struct send_args *args, int argc, char *argv[])
         {.name = "dport", .has_arg = required_argument, .flag = NULL, .val = 261},
         {.name = "streams", .has_arg = required_argument, .flag = NULL, .val = 262},
         {.name = "inf", .has_arg = no_argument, .flag = NULL, .val = 263},
+        {.name = "npkt_row", .has_arg = required_argument, .flag = NULL, .val = 264},
         {.name = "help", .has_arg = no_argument, .flag = NULL, .val = 'h'},
         {0, 0, 0, 0}
     };
@@ -273,6 +277,9 @@ void parse_send_args(struct send_args *args, int argc, char *argv[])
             case 263:
                 args->inf = 1;
                 break;
+            case 264:
+                sscanf(optarg, "%d", &args->npkt_row);
+                break;
             case 'h':
                 args->help_info = 1;
                 break;
@@ -331,6 +338,7 @@ void print_send_info(struct send_args *args){
         printf("    packet number per group: %d\n", args->npkt_per_grp);
         printf("    packet group number: %d\n", args->npkt_grp);
     }
+    printf("    npkt_row: %d\n", args->npkt_row);
     printf("**********************************************\n");
 }
 
