@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     }
     // generate pkts
     int i = 0;
-    while(i < wr_num * ibv_res.send_wr_num)
+    while(i < wr_num * ibv_res.send_nsge)
     {
         for(int j = 0; j < args.streams; j++)
         {

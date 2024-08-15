@@ -188,6 +188,7 @@ int init_ib_res(struct ibv_utils_res *ib_res)
     // Initialize the QP
     struct ibv_qp_attr qp_attr;
     int qp_flags;
+    ibv_utils_warn("modify QP to INIT.");
     memset(&qp_attr, 0, sizeof(qp_attr));
     qp_flags = IBV_QP_STATE | IBV_QP_PORT;
     qp_attr.qp_state = IBV_QPS_INIT;
@@ -200,6 +201,7 @@ int init_ib_res(struct ibv_utils_res *ib_res)
         return -1;
     }
     // Move the QP to RTR
+    ibv_utils_warn("modify QP to RTR.");
     memset(&qp_attr, 0, sizeof(qp_attr));
     qp_flags = IBV_QP_STATE;
     qp_attr.qp_state = IBV_QPS_RTR;
@@ -210,6 +212,7 @@ int init_ib_res(struct ibv_utils_res *ib_res)
         return -2;
     }
     // move the QP to RTS
+    ibv_utils_warn("modify QP to RTS.");
     memset(&qp_attr, 0, sizeof(qp_attr));
     qp_flags = IBV_QP_STATE;
     qp_attr.qp_state = IBV_QPS_RTS;
