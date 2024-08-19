@@ -5,4 +5,5 @@ RoCEv2/Demos/*.log
 scripts/Recv/*.log
 scripts/Send/*.log
 RoCEv2/ibv_utils/lib/*.so
+scripts/one-machine/*.log
 .vscode
