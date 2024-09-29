@@ -47,8 +47,14 @@ void set_udp_src_port(struct udp_pkt *pkt, uint16_t port) {
 void set_udp_dst_port(struct udp_pkt *pkt, uint16_t port) {
     pkt->udp_hdr[2] = (port >> 8) & 0xFF;
     pkt->udp_hdr[3] = port & 0xFF;
-    pkt->udp_hdr[4] = 0x1f;
-    pkt->udp_hdr[5] = 0x40;
+}
+
+void set_pkt_len(struct udp_pkt *pkt, uint16_t len) {
+    set_ip_hdrs(pkt, (uint8_t *)"\x45\x00\x00\x1f\x54\x00\x00\x00\x40\x11\xaf\xb6");
+    pkt->udp_hdr[4] = (len >> 8) & 0xFF;
+    pkt->udp_hdr[5] = len & 0xFF;
+    pkt->ip_hdrs[2] = (len + 20) >> 8;
+    pkt->ip_hdrs[3] = (len + 20) & 0xFF;
 }
 
 void set_payload(struct udp_pkt *pkt, uint8_t *payload, int len) {

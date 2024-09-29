@@ -22,6 +22,7 @@ void set_src_ip(struct udp_pkt *pkt, uint8_t *ip);
 void set_dst_ip(struct udp_pkt *pkt, uint8_t *ip);
 void set_udp_src_port(struct udp_pkt *pkt, uint16_t port);
 void set_udp_dst_port(struct udp_pkt *pkt, uint16_t port);
+void set_pkt_len(struct udp_pkt *pkt, uint16_t len);
 void set_payload(struct udp_pkt *pkt, uint8_t *payload, int len);
 
 #endif
